@@ -1,0 +1,16 @@
+{
+  "alpha": 0.72,
+  "gamma": 1.0,
+  "epsilon": 0.4,
+  "mi": 0.1,
+  "beta": 0.25,
+  "EPISODES": 100,
+  "max_steps": 50,
+  "FPS": 60,
+  "reward_start_visual": 0.0,
+  "reward_finish": 50.0,
+  "reward_obstacle_block": -10.0,
+  "reward_trap": -30.0,
+  "reward_valid_move": -1.0,
+  "reward_invalid_move": -10.0
+}

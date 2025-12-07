@@ -9,6 +9,7 @@ class Maze:
         self.origin_cor = origin
         self.cell_options = ["Up", "Right", "Down", "Left", "Center"] # ["Up", "Right", "Down", "Left", "Center"] ["↑","→","↓","←","•"]
         self.maze_grid = [["" for _ in range(maze_size_height)] for _ in range(maze_size_width)]
+        self.maze_walls = [[["Wall" for _ in range(4)] for _ in range(maze_size_height)] for _ in range(maze_size_width)]
 
     def create_default(self):
         for y in range(self.maze_size_height):
@@ -18,6 +19,7 @@ class Maze:
                 elif x < self.origin_cor[0]:    self.maze_grid[x][y] = self.cell_options[1] # Arrow Right
                 elif y > self.origin_cor[1]:    self.maze_grid[x][y] = self.cell_options[0] # Arrow Down
                 elif y < self.origin_cor[1]:    self.maze_grid[x][y] = self.cell_options[2] # Arrow Up
+    
     def print_maze(self):
         symbols = {
             "Up": "↑",
@@ -33,6 +35,7 @@ class Maze:
                 row += f"{symbols[cell]:^4}"  # center-align symbol
             print(row)
         print("\n")
+
     def move_origin(self, direction):
         if direction == "Up":
             self.maze_grid[self.origin_cor[0]][self.origin_cor[1]] = self.cell_options[0]
@@ -62,6 +65,25 @@ class Maze:
 
                 break  # legal move picked
             self.move_origin(random_move)
+
+
+    def draw_wall_top(self, cor_x, cor_y, rect_size, grid_wall_width=2, color=pygame.Color(0,255,0)):
+        top_rect = pygame.Rect((cor_x, cor_y - grid_wall_width/2), (rect_size, grid_wall_width)) # UP
+        pygame.draw.rect(screen, color, top_rect)
+
+    def draw_wall_bottom(self, cor_x, cor_y, rect_size, grid_wall_width=2, color=pygame.Color(0,255,0)):
+        bottom_rect = pygame.Rect((cor_x, cor_y+rect_size - grid_wall_width/2), (rect_size, grid_wall_width)) # DOWN
+        pygame.draw.rect(screen, color, bottom_rect)
+
+    def draw_wall_left(self, cor_x, cor_y, rect_size, grid_wall_width=2, color=pygame.Color(0,255,0)):
+        left_rect = pygame.Rect((cor_x - grid_wall_width/2, cor_y), (grid_wall_width, rect_size)) # LEFT
+        pygame.draw.rect(screen, color, left_rect)
+
+    def draw_wall_right(self, cor_x,cor_y,rect_size,grid_wall_width=2, color=pygame.Color(0,255,0)):
+        right_rect = pygame.Rect((cor_x+rect_size - grid_wall_width/2, cor_y), (grid_wall_width, rect_size))  # RIGHT
+        pygame.draw.rect(screen, color, right_rect)
+
+
     def draw_maze(self,rect_size,horizontal_margin,vertical_margin, draw_arrows=True):
         # Calculate the available width and height
         avail_w = SCREEN_WIDTH - (2*horizontal_margin)
@@ -79,66 +101,69 @@ class Maze:
         gy = int(round(vertical_margin   + (avail_h - grid_h)/2))
 
         # Draw outline of maze rect
-        self.draw_rect_with_outline((gx,gy), grid_w, grid_h, 4)
+        # self.draw_rect_with_outline((gx,gy), grid_w, grid_h, 4)
         # arrow pedding so they are a bit more far from each other and from the walls
         arrow_padding = rect_size * 0.12
         # Grid cells wall width
         grid_wall_width = 2
         
-        
         for y in range(self.maze_size_height):
             for x in range(self.maze_size_width):
 
-                rect_sides = ""
                 cor_x = x*rect_size+gx
                 cor_y = y*rect_size+gy
                 # Draw outlined rectangle on each step (each cell)
                 # self.draw_rect_with_outline((cor_x,cor_y),rect_size,rect_size,5)
                 arrow_direction = self.maze_grid[x][y]
 
-                dx_r = x+1
-                dx_l = x-1
-                dy_u = y-1
-                dy_d = y+1
 
-                dx_r_arr_dir = self.maze_grid[dx_r][y]
-                dx_l_arr_dir = self.maze_grid[dx_l][y]
-                dy_u_arr_dir = self.maze_grid[x][dy_u]
-                dy_d_arr_dir = self.maze_grid[x][dy_d]
+                # implement out of range bounds 
+                
 
                 if(draw_arrows):
                     match arrow_direction:
                         case "Up":
                             arrow = self.arrow_polygon((cor_x+(rect_size/2), cor_y+rect_size - arrow_padding),
                                                        (cor_x+(rect_size/2), cor_y + arrow_padding))
+                            self.maze_walls[x][y][0] = ""
+                            if(y > 0):
+                                self.maze_walls[x][y-1][1] = ""
 
-                            rect_sides = "Up_Down"
                         case "Down":
                             arrow = self.arrow_polygon((cor_x+(rect_size/2), cor_y + arrow_padding),
                                                        (cor_x+(rect_size/2), cor_y+rect_size - arrow_padding))
-                            rect_sides = "Up_Down"
+                            self.maze_walls[x][y][1] = ""
+                            if(y < self.maze_size_height - 1):
+                                self.maze_walls[x][y+1][0] = ""
                         case "Left":  
                             arrow = self.arrow_polygon((cor_x+rect_size - arrow_padding, cor_y+(rect_size/2)),
                                                        (cor_x + arrow_padding, cor_y+(rect_size/2)))
-                            rect_sides = "Left_Right"
+                            self.maze_walls[x][y][2] = ""
+                            if(x > 0):
+                                self.maze_walls[x-1][y][3] = ""
                         case "Right":
                             arrow = self.arrow_polygon((cor_x + arrow_padding, cor_y+(rect_size/2)),
                                                        (cor_x+rect_size - arrow_padding, cor_y+(rect_size/2)))
-                            rect_sides = "Left_Right"
+                            self.maze_walls[x][y][3] = ""
+                            if(x < self.maze_size_width - 1):
+                                self.maze_walls[x+1][y][2] = ""
                         case "Center":
                             continue
                     pygame.draw.polygon(screen, pygame.Color("white"), arrow)
-                match rect_sides:
-                    case "Up_Down":
-                        first_rect = pygame.Rect((cor_x - grid_wall_width/2, cor_y), (grid_wall_width, rect_size)) # LEFT
-                        second_rect = pygame.Rect((cor_x+rect_size - grid_wall_width/2, cor_y), (grid_wall_width, rect_size))  # RIGHT
-                    case "Left_Right":
-                        first_rect = pygame.Rect((cor_x, cor_y - grid_wall_width/2), (rect_size, grid_wall_width)) # UP
-                        second_rect = pygame.Rect((cor_x, cor_y+rect_size - grid_wall_width/2), (rect_size, grid_wall_width)) # DOWN
-                    case _:
-                        continue
-                pygame.draw.rect(screen, pygame.Color(0,255,0), first_rect)
-                pygame.draw.rect(screen, pygame.Color(0,255,0), second_rect)
+                # print(x, y, arrow_direction, self.maze_walls[x][y])
+                for i,wall in enumerate(self.maze_walls[x][y]):
+                    if(wall == "Wall"):
+                        match i:
+                            case 0:
+                                self.draw_wall_top(cor_x,cor_y,rect_size)
+                            case 1:
+                                self.draw_wall_bottom(cor_x,cor_y,rect_size)
+                            case 2:
+                                self.draw_wall_left(cor_x,cor_y,rect_size)
+                            case 3:
+                                self.draw_wall_right(cor_x,cor_y,rect_size)
+                    
+                
     
         origin_x = self.origin_cor[0]*rect_size + gx + rect_size/4
         origin_y = self.origin_cor[1]*rect_size + gy + rect_size/4

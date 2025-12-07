@@ -125,31 +125,38 @@ class Maze:
                         case "Up":
                             arrow = self.arrow_polygon((cor_x+(rect_size/2), cor_y+rect_size - arrow_padding),
                                                        (cor_x+(rect_size/2), cor_y + arrow_padding))
-                            self.maze_walls[x][y][0] = ""
-                            if(y > 0):
-                                self.maze_walls[x][y-1][1] = ""
-
                         case "Down":
                             arrow = self.arrow_polygon((cor_x+(rect_size/2), cor_y + arrow_padding),
                                                        (cor_x+(rect_size/2), cor_y+rect_size - arrow_padding))
-                            self.maze_walls[x][y][1] = ""
-                            if(y < self.maze_size_height - 1):
-                                self.maze_walls[x][y+1][0] = ""
                         case "Left":  
                             arrow = self.arrow_polygon((cor_x+rect_size - arrow_padding, cor_y+(rect_size/2)),
                                                        (cor_x + arrow_padding, cor_y+(rect_size/2)))
-                            self.maze_walls[x][y][2] = ""
-                            if(x > 0):
-                                self.maze_walls[x-1][y][3] = ""
                         case "Right":
                             arrow = self.arrow_polygon((cor_x + arrow_padding, cor_y+(rect_size/2)),
                                                        (cor_x+rect_size - arrow_padding, cor_y+(rect_size/2)))
-                            self.maze_walls[x][y][3] = ""
-                            if(x < self.maze_size_width - 1):
-                                self.maze_walls[x+1][y][2] = ""
                         case "Center":
                             continue
                     pygame.draw.polygon(screen, pygame.Color("white"), arrow)
+                match arrow_direction:
+                    case "Up":
+                        self.maze_walls[x][y][0] = ""
+                        if(y > 0):
+                            self.maze_walls[x][y-1][1] = ""
+                    case "Down":
+                        self.maze_walls[x][y][1] = ""
+                        if(y < self.maze_size_height - 1):
+                            self.maze_walls[x][y+1][0] = ""
+                    case "Left":  
+                        self.maze_walls[x][y][2] = ""
+                        if(x > 0):
+                            self.maze_walls[x-1][y][3] = ""
+                    case "Right":
+                        self.maze_walls[x][y][3] = ""
+                        if(x < self.maze_size_width - 1):
+                            self.maze_walls[x+1][y][2] = ""
+                    case "Center":
+                        continue
+                    
                 # print(x, y, arrow_direction, self.maze_walls[x][y])
                 for i,wall in enumerate(self.maze_walls[x][y]):
                     if(wall == "Wall"):
@@ -251,7 +258,7 @@ while running:
         if event.type == pygame.QUIT:
             running = False
     screen.fill((0,0,0))
-    maze1.draw_maze(100,100,100)
+    maze1.draw_maze(100,100,100,False)
     pygame.display.flip()
 
     clock.tick(60)

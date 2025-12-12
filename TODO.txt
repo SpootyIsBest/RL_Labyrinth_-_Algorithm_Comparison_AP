@@ -1,0 +1,7 @@
+# TODO 
+# Maze -
+    make the most optimal path from random position to the origin using the arrows
+# UI - 
+    Make the main menu
+     - make it functional
+     - Make there a settings for how many and what RL and notRL to compare + settings for the RL

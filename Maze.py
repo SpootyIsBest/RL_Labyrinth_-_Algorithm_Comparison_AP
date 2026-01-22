@@ -13,12 +13,129 @@ SCREEN_HEIGHT = 720
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 
 TITTLE_FONT = pygame.font.Font(None,72)
+HYPERPARAMETERS_FONT = pygame.font.Font(None, 24)
 BUTTON_FONT = pygame.font.Font(None, 30)
 BUTTON_FONT_INFLATED = pygame.font.Font(None, 32)
 
 agent_img = pygame.image.load("Agent.png").convert_alpha()
 agent_img = pygame.transform.smoothscale(agent_img, (32, 32))
+class Monitors:
+    def __init__(self):
+        self.monitors = ["Main_Menu","Settings","RL - Visualisation"]
+class Button:
+    def __init__(self,
+                  text,
+                  nextMonitor, 
+                  button_font, 
+                  button_font_inflated, 
+                  width, 
+                  height, 
+                  pos, 
+                  inflation_on_press, 
+                  border_radius, 
+                  outline_inflation=7,
+                  click_press_time=200,
+                  button_background_color=pygame.Color(0,0,0,255), 
+                  button_pressed_color=pygame.Color(0,0,0,255), 
+                  button_color=pygame.Color(255,255,255,255),
+                  text_pressed_color=pygame.Color(0,0,0,255), 
+                  text_color=pygame.Color(255,255,255,255)
+                  ):
+        # Core attributes
+        self.pressed = False
+        self.click_until = 0
+        self.click_press_time = click_press_time
+        self.nextMonitor = nextMonitor
 
+        # Colors
+        self.button_color = button_color
+        self.button_pressed_color = button_pressed_color
+        self.button_background_color = button_background_color
+        self.text_color = text_color
+        self.text_pressed_color = text_pressed_color
+
+        # Inflation settings
+        self.inflated = False
+        self.inflation = inflation_on_press
+        self.border_radius = border_radius
+
+        # Top Rect
+        self.top_rect = pygame.Rect(pos, (width, height))
+        self.top_color = self.button_background_color
+
+        # Middle Rect
+        self.middle_rect = pygame.Rect(pos, (width, height))
+        self.middle_color = self.button_background_color
+
+        # Bottom Rect (outline)
+        self.bottom_rect = pygame.Rect(pos, (width, height)).inflate(outline_inflation,outline_inflation)
+        self.bottom_color = button_color
+
+        # Text
+        self.text = text
+        self.button_font = button_font
+        self.button_font_inflated = button_font_inflated
+
+    def _draw_alpha_rect(self, rect, color, radius=20):
+        surf = pygame.Surface(rect.size, pygame.SRCALPHA)
+        pygame.draw.rect(surf, color, surf.get_rect(), border_radius=radius)
+        screen.blit(surf, rect.topleft)
+    def _on_click(self):
+        # store the timestamp when the color should reset
+        self.click_until = pygame.time.get_ticks() + self.click_press_time  # 300 ms = 0.3 s
+        global activeMonitor
+        activeMonitor = self.nextMonitor
+ 
+
+    def draw(self):
+        
+        pygame.draw.rect(screen,self.bottom_color,self.bottom_rect, border_radius=self.border_radius)
+        pygame.draw.rect(screen,self.middle_color,self.middle_rect, border_radius=self.border_radius)
+
+        now = pygame.time.get_ticks()
+
+        if self.inflated:
+            font = self.button_font_inflated
+            color = self.text_color
+            if now < self.click_until:
+                color = self.button_pressed_color  # clicked color
+                self._draw_alpha_rect(self.top_rect, pygame.Color(255,255,255,30), radius=self.border_radius)
+            else:
+                self._draw_alpha_rect(self.top_rect, pygame.Color(255,255,255,130), radius=self.border_radius)
+        else:
+            pygame.draw.rect(screen,self.top_color,self.top_rect, border_radius=self.border_radius)
+            font = self.button_font
+            color = self.text_color
+
+        text_surf = font.render(self.text, True, color)
+        text_rect = text_surf.get_rect(center=self.top_rect.center)
+        screen.blit(text_surf,text_rect)
+
+        self.click_check()
+
+    def click_check(self):
+        mouse_pos = pygame.mouse.get_pos()
+        if self.top_rect.collidepoint(mouse_pos):
+            if not self.inflated:
+                self.top_rect = self.top_rect.inflate(self.inflation,self.inflation)
+                self.middle_rect = self.middle_rect.inflate(self.inflation,self.inflation)
+                self.bottom_rect = self.bottom_rect.inflate(self.inflation,self.inflation)
+                
+                self.inflated = True
+            if pygame.mouse.get_pressed()[0]:
+                self.pressed = True
+            else:
+                if self.pressed:
+                    self.pressed = False
+                    self._on_click()
+                    
+        else:
+            if self.inflated:
+                
+                self.top_rect = self.top_rect.inflate(-self.inflation,-self.inflation)
+                self.middle_rect = self.middle_rect.inflate(-self.inflation,-self.inflation)
+                self.bottom_rect = self.bottom_rect.inflate(-self.inflation,-self.inflation)
+                self.inflated = False
 class State:
     def __init__(self, reward, actions, pos):
         self.reward = reward          # reward for entering this cell
@@ -543,7 +660,8 @@ rewardForValidMove = -1
 rewardForInvalidMove = -10
 
 EPISODES = 2000
-max_steps = 10000
+CURRENT_EPISODE = 0
+max_steps = 100
 gamma = 1.0
 
 numOfReturns = 0
@@ -562,7 +680,7 @@ maze1 = Maze(20,20,[1,1])
 
 # Make all arrows to point in the dirrection of the origin (necessary in order to make the random suffle work)
 maze1.create_default()
-# How many random steps is origin going to take to shuffle the maze (this function also shuffles the maze)
+# How many random steps is origin going to take to shuffle the maze (this function shuffles the maze)
 maze1.random_sequence(500000)
 # Calculating the starting position of the agent (algorithm)
 maze1.carve_walls_from_arrows()
@@ -580,6 +698,8 @@ def q_learning_coroutine(agent, maze, Q,
                          ALPHA0, ALPHA_MIN, ALPHA_DECAY):
 
     for episode in range(EPISODES):
+        global CURRENT_EPISODE
+        CURRENT_EPISODE = episode + 1
         epsilon = max(EPS_MIN, EPS0 * (EPS_DECAY ** episode))
         alpha   = max(ALPHA_MIN, ALPHA0 * (ALPHA_DECAY ** episode))
 
@@ -609,11 +729,38 @@ def q_learning_coroutine(agent, maze, Q,
         # yield
 
     print("Training coroutine finished")
+def showConfigValuesOnScreen():
+    info_lines = [
+        f"Current Episode: {CURRENT_EPISODE}/{EPISODES}",
+        f"Max Steps/Episode: {max_steps}",
+        f"Gamma: {gamma:.2f}",
+        f"Epsilon0: {EPS0:.2f}, Epsilon Min: {EPS_MIN:.2f}, Epsilon Decay: {EPS_DECAY:.4f}",
+        f"Alpha0: {ALPHA0:.2f}, Alpha Min: {ALPHA_MIN:.2f}, Alpha Decay: {ALPHA_DECAY:.4f}"
+    ]
+
+    for i, line in enumerate(info_lines):
+        text_surf = HYPERPARAMETERS_FONT.render(line, True, pygame.Color("white"))
+        screen.blit(text_surf, (10, 10 + i * 30))
+def draw_Main_Menu():
+    start_button.draw()
+    settings_button.draw()
+def draw_Settings_Menu():
+    mainMenu_button.draw()
+
 
 clock = pygame.time.Clock()
 
+start_button = Button("RL - Visualisation","RL - Visualisation", BUTTON_FONT, BUTTON_FONT_INFLATED, 200,100, (SCREEN_WIDTH/2 - 100, SCREEN_HEIGHT/2 - 50),7,20)
+settings_button = Button("Settings", "Settings", BUTTON_FONT, BUTTON_FONT_INFLATED, 200,100, (SCREEN_WIDTH/2 - 100, SCREEN_HEIGHT/2 + 100),7,20)
+mainMenu_button = Button("Main Menu", "Main_Menu", BUTTON_FONT, BUTTON_FONT_INFLATED, 200,100, (SCREEN_WIDTH/2 - 100, SCREEN_HEIGHT/2 + 250),7,20)
+
+screenArray = Monitors()
+activeMonitor = screenArray.monitors[0]
+
 running = True
 show_path = False
+show_config = False
+
 trainer = None
 training_active = False
 
@@ -627,9 +774,11 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        if event.type == pygame.KEYDOWN:
+        if event.type == pygame.KEYDOWN and activeMonitor == "RL - Visualisation":
             if event.key == pygame.K_i:
                 show_path = not show_path
+            if event.key == pygame.K_v: # Show Config Values on Screen
+                show_config = not show_config
             if event.key == pygame.K_s:  # start/stop training
                 if not training_active:
                     trainer = q_learning_coroutine(
@@ -646,12 +795,20 @@ while running:
                     print("Training stopped manually")
 
     screen.fill((0, 0, 0))
-
+    if activeMonitor == "Main_Menu":
+        draw_Main_Menu()
+    elif activeMonitor == "Settings":
+        # draw settings menu
+        draw_Settings_Menu()
     # draw maze and agent
-    maze1.draw_maze(BASE_RECT_SIZE, HMARGIN, VMARGIN, False, True)
-    maze1.draw_agent(agent, BASE_RECT_SIZE, HMARGIN, VMARGIN, agent_img)
-    if show_path:
-        maze1.draw_optimal_path(HMARGIN,VMARGIN,BASE_RECT_SIZE,maze1.start_pos)
+    elif activeMonitor == "RL - Visualisation":
+        maze1.draw_maze(BASE_RECT_SIZE, HMARGIN, VMARGIN, False, True)
+        maze1.draw_agent(agent, BASE_RECT_SIZE, HMARGIN, VMARGIN, agent_img)
+        if show_path:
+            maze1.draw_optimal_path(HMARGIN,VMARGIN,BASE_RECT_SIZE,maze1.start_pos)
+        if show_config:
+            showConfigValuesOnScreen()
+
     # advance training coroutine a bit each frame
     if training_active and trainer is not None:
         steps_per_frame = 1  # increase to speed up training visual

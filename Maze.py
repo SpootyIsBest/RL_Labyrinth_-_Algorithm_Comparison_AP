@@ -112,18 +112,18 @@ class Maze:
                 break  # legal move picked
             self.move_origin(random_move)
 
-    def draw_wall_top(self, cor_x, cor_y, rect_size, grid_wall_width=2, color=pygame.Color(0,255,0)):
+    def draw_wall_top(self, cor_x, cor_y, rect_size, grid_wall_width=2, color=pygame.Color(230, 170, 104)):
         top_rect = pygame.Rect((cor_x, cor_y - grid_wall_width/2), (rect_size, grid_wall_width)) # UP
         pygame.draw.rect(self.screen, color, top_rect)
 
-    def draw_wall_bottom(self, cor_x, cor_y, rect_size, grid_wall_width=2, color=pygame.Color(0,255,0)):
+    def draw_wall_bottom(self, cor_x, cor_y, rect_size, grid_wall_width=2, color=pygame.Color(230, 170, 104)):
         bottom_rect = pygame.Rect((cor_x, cor_y+rect_size - grid_wall_width/2), (rect_size, grid_wall_width)) # DOWN
         pygame.draw.rect(self.screen, color, bottom_rect)
-    def draw_wall_left(self, cor_x, cor_y, rect_size, grid_wall_width=2, color=pygame.Color(0,255,0)):
+    def draw_wall_left(self, cor_x, cor_y, rect_size, grid_wall_width=2, color=pygame.Color(230, 170, 104)):
         left_rect = pygame.Rect((cor_x - grid_wall_width/2, cor_y), (grid_wall_width, rect_size)) # LEFT
         pygame.draw.rect(self.screen, color, left_rect)
 
-    def draw_wall_right(self, cor_x,cor_y,rect_size,grid_wall_width=2, color=pygame.Color(0,255,0)):
+    def draw_wall_right(self, cor_x,cor_y,rect_size,grid_wall_width=2, color=pygame.Color(230, 170, 104)):
         right_rect = pygame.Rect((cor_x+rect_size - grid_wall_width/2, cor_y), (grid_wall_width, rect_size))  # RIGHT
         pygame.draw.rect(self.screen, color, right_rect)
 

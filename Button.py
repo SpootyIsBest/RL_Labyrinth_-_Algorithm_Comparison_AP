@@ -1,9 +1,11 @@
 import pygame
+
 class Button:
     def __init__(self,
                   screen,
                   text,
-                  nextMonitor, 
+                  nextMonitor,
+                  on_change_monitor, 
                   button_font, 
                   button_font_inflated, 
                   width, 
@@ -25,6 +27,7 @@ class Button:
         self.click_press_time = click_press_time
         self.nextMonitor = nextMonitor
         self.screen = screen
+        self.on_change_monitor = on_change_monitor
         # Colors
         self.button_color = button_color
         self.button_pressed_color = button_pressed_color
@@ -61,8 +64,8 @@ class Button:
     def _on_click(self):
         # store the timestamp when the color should reset
         self.click_until = pygame.time.get_ticks() + self.click_press_time  # 300 ms = 0.3 s
-        global activeMonitor
-        activeMonitor = self.nextMonitor
+        if self.on_change_monitor:
+            self.on_change_monitor(self.nextMonitor)
  
 
     def draw(self):

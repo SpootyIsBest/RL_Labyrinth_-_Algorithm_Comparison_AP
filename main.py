@@ -1,6 +1,5 @@
 import random
 import pygame
-import math
 import numpy as np
 import csv
 from InputBox import InputBox
@@ -172,14 +171,49 @@ def draw_Settings_Menu():
         input_box.draw(screen)
         label_surf, label_pos = input_box_label[i]
         screen.blit(label_surf, label_pos)
-
+def set_active_monitor(monitor):
+    global activeMonitor
+    activeMonitor = monitor
 
 
 clock = pygame.time.Clock()
 
-start_button = Button(screen,"RL - Visualisation","RL - Visualisation", BUTTON_FONT, BUTTON_FONT_INFLATED, 200,100, (SCREEN_WIDTH/2 - 100, SCREEN_HEIGHT/2 - 50),7,20)
-settings_button = Button(screen,"Settings", "Settings", BUTTON_FONT, BUTTON_FONT_INFLATED, 200,100, (SCREEN_WIDTH/2 - 100, SCREEN_HEIGHT/2 + 100),7,20)
-mainMenu_button = Button(screen,"Main Menu", "Main_Menu", BUTTON_FONT, BUTTON_FONT_INFLATED, 200,100, (SCREEN_WIDTH/2 - 100, SCREEN_HEIGHT/2 + 250),7,20)
+start_button = Button(screen,
+                    "RL - Visualisation",
+                    "RL - Visualisation",
+                    set_active_monitor,
+                    BUTTON_FONT,
+                    BUTTON_FONT_INFLATED,
+                    200,
+                    100, 
+                    (SCREEN_WIDTH/2 - 100, SCREEN_HEIGHT/2 - 50),
+                    7,
+                    20
+                    )
+settings_button = Button(screen,
+                    "Settings", 
+                    "Settings",
+                    set_active_monitor, 
+                    BUTTON_FONT, 
+                    BUTTON_FONT_INFLATED, 
+                    200,
+                    100, 
+                    (SCREEN_WIDTH/2 - 100, SCREEN_HEIGHT/2 + 100),
+                    7,
+                    20
+                    )
+mainMenu_button = Button(screen,
+                    "Main Menu", 
+                    "Main_Menu",
+                    set_active_monitor,
+                    BUTTON_FONT, 
+                    BUTTON_FONT_INFLATED, 
+                    200,
+                    100, 
+                    (SCREEN_WIDTH/2 - 100, SCREEN_HEIGHT/2 + 250),
+                    7,
+                    20
+                    )
 
 # Settgings monitor variables
 # ACTIVE_COLOR = pygame.Color(193, 73, 83)

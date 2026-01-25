@@ -1,5 +1,5 @@
 class State:
-    def __init__(self, reward, possibleActions, position):
-        self.reward = reward
-        self.possibleActions = possibleActions
-        self.position = position
+    def __init__(self, reward, actions, pos):
+        self.reward = reward          # reward for entering this cell
+        self.actions = actions[:]     # allowed actions from this cell
+        self.pos = pos[:]             # [x, y]

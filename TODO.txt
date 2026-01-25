@@ -3,6 +3,13 @@
 
 # Data - 
     Create structure for the DATA, and what values to collect
+    Json - 
+        max_Episode,
+        firstFind,
+        numOfReturns,
+        
+
+
 # UI - 
     Main Menu
 

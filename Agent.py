@@ -1,64 +1,67 @@
 import random
 
 class Agent:
-    def __init__(self, rewardOutOfGrid, grid):
+    # actions: 0=left, 1=right, 2=up, 3=down
+    def __init__(self, invalid_reward, grid_states, initial_pos):
+        self.actionOptions = [0, 1, 2, 3]
+        self.invalid_reward = invalid_reward
+        self.grid = grid_states
+        self.initial_pos = initial_pos[:]
+        self.reset()
+
+    def reset(self):
+        self.activeState = self.initial_pos[:]
         self.activeReward = 0
-        self.activeState = [0, 0]  # x=0, y=0
-        self.changePosArray = [[-1, 0], [1, 0], [0, -1], [0, 1]] #  Left, Right, Up, Down
-        self.actionOptions = [0, 1, 2, 3]  # indexes to changePosArray 
-        
 
-        self.rewardOutOfGrid = rewardOutOfGrid
-        self.grid = grid
+    def _in_bounds(self, x, y):
+        return 0 <= x < len(self.grid[0]) and 0 <= y < len(self.grid)
+    
+    def _greedy_action_from_Q(self, state, Q):
+        """
+        Pick the best action in 'state' according to Q, respecting allowed actions.
+        Returns None if there are no allowed actions (terminal state).
+        """
+        x, y = state
+        allowed = self.grid[y][x].actions  # e.g. [0,1,3] etc.
 
-    def random_max_with_index(self, numbers):
-        max_val = float('-inf')
-        indices = []
-        for i, val in enumerate(numbers):
-            if val > max_val:
-                max_val = val
-                indices = [i]
-            elif val == max_val:
-                indices.append(i)
-        chosen_index = random.choice(indices)
-        return max_val, chosen_index
-    def MakeAction(self, action):
-        x, y = self.activeState
-        state = self.grid[y][x]  # grid[row][col]
-        
-        if action in state.possibleActions:
-            dx, dy = self.changePosArray[action]
-            new_x = x + dx
-            new_y = y + dy
-            self.activeState = [new_x, new_y]
-            newState = self.grid[new_y][new_x]
-            self.activeReward += newState.reward
-            print(f"Moved to {self.activeState}\nNew active reward: {self.activeReward}")
-        else:
-            self.activeReward += self.rewardOutOfGrid
-            print(f"Action not allowed in this state stayed on: {self.activeState}!\nActive reward: {self.activeReward}")
-    def CheckNextAction(self, action):
-        x, y = self.activeState
-        state = self.grid[y][x]  # grid[row][col]
+        if not allowed:
+            return None
 
-        if action in state.possibleActions:
-            dx, dy = self.changePosArray[action]
-            new_x = x + dx
-            new_y = y + dy
-            newState = self.grid[new_y][new_x]
-            return newState.reward
-        else:
-            return self.rewardOutOfGrid
+        q_row = Q[y, x]  # shape (4,)
+        best_value = max(q_row[a] for a in allowed)
+        best_actions = [a for a in allowed if q_row[a] == best_value]
 
-    # def ProcessNextAction(self):
-    #     x, y = self.activeState 
-    #     allReward = []
-    #     for i in range(len(self.actionOptions)):
-    #         allReward.append(self.CheckNextAction(i))
-    #     bestNewReward, action = self.random_max_with_index(allReward)
-    #     print(f"Next best reward:{bestNewReward}\n On action {action}")
-    #     self.MakeAction(action)
+        # tie-break randomly between equally good actions
+        return random.choice(best_actions)
+
     def ProcessNextAction(self, action):
-        reward = self.CheckNextAction(action)
-        self.MakeAction(action)
-        return reward, self.activeState
+        """
+        Returns: (reward, next_state[list[x,y]])
+        - If action is illegal from current cell, gives invalid penalty and stays in place.
+        - Otherwise moves into the next cell and receives that cell's reward.
+        """
+        x, y = self.activeState
+        allowed = self.grid[y][x].actions
+
+        if action not in allowed:
+            r = self.invalid_reward
+            next_state = [x, y]
+            self.activeReward += r
+            return r, next_state
+
+        if action == 0:   nx, ny = x - 1, y
+        elif action == 1: nx, ny = x + 1, y
+        elif action == 2: nx, ny = x, y - 1
+        else:             nx, ny = x, y + 1
+
+        # Safety (should be guaranteed by allowed actions)
+        if not self._in_bounds(nx, ny):
+            r = self.invalid_reward
+            next_state = [x, y]
+            self.activeReward += r
+            return r, next_state
+
+        r = self.grid[ny][nx].reward
+        self.activeState = [nx, ny]
+        self.activeReward += r
+        return r, [nx, ny]

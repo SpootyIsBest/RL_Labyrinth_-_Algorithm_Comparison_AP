@@ -1,131 +1,38 @@
-import numpy as np
 import random
+import pygame
 import math
+import numpy as np
+import csv
+from InputBox import InputBox
+from Maze import Maze
+from Monitors import Monitors
+from Button import Button
+from Agent import Agent
 
-# -----------------------------
-# Environment + models
-# -----------------------------
-class State:
-    def __init__(self, reward, actions, pos):
-        self.reward = reward          # reward for entering this cell
-        self.actions = actions[:]     # allowed actions from this cell
-        self.pos = pos[:]             # [x, y]
+pygame.init()
 
-class Agent:
-    # actions: 0=left, 1=right, 2=up, 3=down
-    def __init__(self, invalid_reward, grid_states, initial_pos):
-        self.actionOptions = [0, 1, 2, 3]
-        self.invalid_reward = invalid_reward
-        self.grid = grid_states
-        self.initial_pos = initial_pos[:]
-        self.reset()
+# Screen width and height (on monitor) 
+# TODO 
+# Make the screen fullscreen for presentation purposes  
+SCREEN_WIDTH = 1280
+SCREEN_HEIGHT = 720
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 
-    def reset(self):
-        self.activeState = self.initial_pos[:]
-        self.activeReward = 0
+TITTLE_FONT = pygame.font.Font(None,72)
+HYPERPARAMETERS_FONT = pygame.font.Font(None, 24)
+BUTTON_FONT = pygame.font.Font(None, 30)
+BUTTON_FONT_INFLATED = pygame.font.Font(None, 32)
+INPUT_BOX_FONT = pygame.font.Font(None, 28)
 
-    def _in_bounds(self, x, y):
-        return 0 <= x < len(self.grid[0]) and 0 <= y < len(self.grid)
-
-    def ProcessNextAction(self, action):
-        """
-        Returns: (reward, next_state[list[x,y]])
-        - If action is illegal from current cell, gives invalid penalty and stays in place.
-        - Otherwise moves into the next cell and receives that cell's reward.
-        """
-        x, y = self.activeState
-        allowed = self.grid[y][x].actions
-
-        if action not in allowed:
-            r = self.invalid_reward
-            next_state = [x, y]
-            self.activeReward += r
-            return r, next_state
-
-        if action == 0:   nx, ny = x - 1, y
-        elif action == 1: nx, ny = x + 1, y
-        elif action == 2: nx, ny = x, y - 1
-        else:             nx, ny = x, y + 1
-
-        # Safety (should be guaranteed by allowed actions)
-        if not self._in_bounds(nx, ny):
-            r = self.invalid_reward
-            next_state = [x, y]
-            self.activeReward += r
-            return r, next_state
-
-        r = self.grid[ny][nx].reward
-        self.activeState = [nx, ny]
-        self.activeReward += r
-        return r, [nx, ny]
-
-# -----------------------------
-# Config
-# -----------------------------
-rewardForFinish = 50
-rewardForValidMove = -1
-rewardForInvalidMove = -10
-
-gridWidth = 20
-gridHeight = 15
-
-initialPosition = [0, gridHeight - 1]
-goal_x, goal_y = gridWidth - 1, 0
-
-EPISODES = 200
-max_steps = 1000
-gamma = 1.0
-
-# epsilon/alpha decay (monotonic with floors)
-EPS0, EPS_MIN, EPS_DECAY = 0.9, 0.05, 0.995
-ALPHA0, ALPHA_MIN, ALPHA_DECAY = 0.72, 0.10, 0.997
-
-# -----------------------------
-# Build grid with barriers & allowed actions
-# -----------------------------
-gridStates = []
-for y in range(gridHeight):
-    row = []
-    for x in range(gridWidth):
-        actions = [0, 1, 2, 3]  # left right up down
-
-        # Border walls
-        if x == 0 and 0 in actions: actions.remove(0)
-        if x == gridWidth - 1 and 1 in actions: actions.remove(1)
-        if y == 0 and 2 in actions: actions.remove(2)
-        if y == gridHeight - 1 and 3 in actions: actions.remove(3)
-
-        # Barriers (same as your original logic)
-        if x == 2 and y >= 1 and 1 in actions:
-            actions.remove(1)
-        if x == 4 and y >= 1 and 0 in actions:
-            actions.remove(0)
-        if x == 3 and y == 0 and 3 in actions:
-            actions.remove(3)
-
-        if x == 7 and y <= 3 and 1 in actions:
-            actions.remove(1)
-        if x == 9 and y <= 3 and 0 in actions:
-            actions.remove(0)
-        if x == 8 and y == 4 and 2 in actions:
-            actions.remove(2)
-
-        # Goal cell: no outgoing actions; entering it gives finish reward
-        if x == goal_x and y == goal_y:
-            reward = rewardForFinish
-            actions = []
-        else:
-            reward = rewardForValidMove
-
-        row.append(State(reward, actions, [x, y]))
-    gridStates.append(row)
+agent_img = pygame.image.load("Agent.png").convert_alpha()
+agent_img = pygame.transform.smoothscale(agent_img, (32, 32))
 
 # -----------------------------
 # Helpers for masking
 # -----------------------------
-def valid_actions(state):
+def valid_actions(state, maze):
     x, y = state
-    return gridStates[y][x].actions
+    return maze.gridStates[y][x].actions
 
 def masked_max(q_row, acts):
     if not acts:  # terminal state
@@ -140,8 +47,8 @@ def masked_argmax(q_row, acts):
     best_as = [a for a in acts if q_row[a] == best]
     return random.choice(best_as)
 
-def epsilon_greedy_action(state, Q, epsilon):
-    acts = valid_actions(state)
+def epsilon_greedy_action(state, Q, epsilon, maze):
+    acts = valid_actions(state, maze)
     if not acts:
         return None
     if random.random() < epsilon:
@@ -149,124 +56,283 @@ def epsilon_greedy_action(state, Q, epsilon):
     return masked_argmax(Q[state[1], state[0]], acts)
 
 # -----------------------------
-# Init agent and Q-table
+# Config - Default Settings
 # -----------------------------
-agent = Agent(rewardForInvalidMove, gridStates, initialPosition)
-Q = np.zeros((gridHeight, gridWidth, 4), dtype=float)
 
-# Stats
-firstFind = False
-firstEpisode = -1
+FPS = 200
+
+rewardForFinish = 50
+rewardForValidMove = -1
+rewardForInvalidMove = -10
+
+EPISODES = 2000
+CURRENT_EPISODE = 0
+max_steps = 100
+gamma = 1.0
+
 numOfReturns = 0
+firstFind = False
+firstEpisode = None
 
-# -----------------------------
-# Training
-# -----------------------------
-for episode in range(EPISODES):
-    # Decay schedules per episode
-    epsilon = max(EPS_MIN, EPS0 * (EPS_DECAY ** episode))
-    alpha = max(ALPHA_MIN, ALPHA0 * (ALPHA_DECAY ** episode))
+# epsilon/alpha decay (monotonic with floors)
+EPS0, EPS_MIN, EPS_DECAY = 0.9, 0.05, 0.995
+ALPHA0, ALPHA_MIN, ALPHA_DECAY = 0.72, 0.10, 0.997
 
-    agent.reset()
-    state = agent.activeState[:]
-    action = epsilon_greedy_action(state, Q, epsilon)
 
-    for t in range(max_steps):
-        if action is None:  # terminal state (should only happen at goal)
-            break
 
-        reward, next_state = agent.ProcessNextAction(action)
+# Creating Maze from class maze
+# (maze_Width, maze_Height, origin_start_pos)
+maze1 = Maze(screen, SCREEN_WIDTH, SCREEN_HEIGHT, 10,10,[1,1])
 
-        x, y = state
-        nx, ny = next_state
+# Make all arrows to point in the dirrection of the origin (necessary in order to make the random suffle work)
+maze1.create_default()
+# How many random steps is origin going to take to shuffle the maze (this function shuffles the maze)
+maze1.random_sequence(500000)
+# Calculating the starting position of the agent (algorithm)
+maze1.carve_walls_from_arrows()
+maze1.cal_init_pos()
+maze1.create_optimal_path(maze1.start_pos)
+maze1.create_grid_states(rewardForFinish,rewardForValidMove)
 
-        # Q-learning target with masked max over legal next actions
-        next_acts = valid_actions(next_state)
-        target = reward + gamma * masked_max(Q[ny, nx], next_acts)
-        Q[y, x, action] += alpha * (target - Q[y, x, action])
+agent = Agent(-5,maze1.gridStates,maze1.start_pos)
 
-        # Next action for behavior (off-policy Q-learning can still behave ε-greedy)
-        state = next_state
-        action = epsilon_greedy_action(state, Q, epsilon)
+Q = np.zeros((maze1.maze_size_height, maze1.maze_size_width, 4), dtype=float)
 
-        # Check goal
-        if state == [goal_x, goal_y]:
-            numOfReturns += 1
-            if not firstFind:
-                firstFind = True
-                firstEpisode = episode
-            break
+def q_learning_coroutine(agent, maze, Q,
+                         EPISODES, max_steps, gamma,
+                         EPS0, EPS_MIN, EPS_DECAY,
+                         ALPHA0, ALPHA_MIN, ALPHA_DECAY):
 
-    # (Optional) progress print
-    # print(f"Episode {episode+1}/{EPISODES} | total reward: {agent.activeReward:.1f} | epsilon: {epsilon:.3f} | alpha: {alpha:.3f}")
+    for episode in range(EPISODES):
+        global CURRENT_EPISODE
+        global firstFind
+        global numOfReturns
+        CURRENT_EPISODE = episode + 1
+        epsilon = max(EPS_MIN, EPS0 * (EPS_DECAY ** episode))
+        alpha   = max(ALPHA_MIN, ALPHA0 * (ALPHA_DECAY ** episode))
 
-print("Training finished!")
-print(f"NUMBER OF FINISHES: {numOfReturns}")
-print(f"FIRST GOAL EPISODE: {firstEpisode}")
+        agent.reset()
+        state = agent.activeState[:]
+        action = epsilon_greedy_action(state, Q, epsilon, maze)
 
-# -----------------------------
-# Reporting helpers
-# -----------------------------
-def print_q_table(Q):
-    print(f"{'State':>8} | {'Left':>7} {'Right':>7} {'Up':>7} {'Down':>7}")
-    print("-" * 42)
-    for y in range(gridHeight):
-        for x in range(gridWidth):
-            values = Q[y, x]
-            print(f"({x},{y})   | {values[0]:7.2f} {values[1]:7.2f} {values[2]:7.2f} {values[3]:7.2f}")
-        print("-" * 42)
+        for t in range(max_steps):
+            if action is None:  # terminal state (goal)
+                if not firstFind:
+                    global firstEpisode
+                    firstEpisode = CURRENT_EPISODE
+                    firstFind = True
+                numOfReturns += 1
+                break
 
-def print_optimal_path_visual(Q, start, goal):
-    state = start[:]
-    path = [tuple(state)]
-    visited = set([tuple(state)])
-    safety_limit = gridWidth * gridHeight * 2
+            reward, next_state = agent.ProcessNextAction(action)
+            x, y   = state
+            nx, ny = next_state
+            if Record_HeatMap:
+                HeatTable[state[1]][state[0]] += 1
+            next_acts = valid_actions(next_state, maze)
+            target = reward + gamma * masked_max(Q[ny, nx], next_acts)
+            Q[y, x, action] += alpha * (target - Q[y, x, action])
 
-    while tuple(state) != tuple(goal) and len(path) < safety_limit:
-        x, y = state
-        acts = valid_actions(state)
-        if not acts:
-            break  # terminal (e.g., goal)
+            state  = next_state
+            action = epsilon_greedy_action(state, Q, epsilon, maze)
+            
+            # here agent.activeState has been updated -> sprite will move
+            yield  # let Pygame update one frame
 
-        a = masked_argmax(Q[y, x], acts)
-        if a is None:
-            break
+        # optional: yield between episodes too
+        # yield
 
-        if a == 0:   nxt = [x - 1, y]
-        elif a == 1: nxt = [x + 1, y]
-        elif a == 2: nxt = [x, y - 1]
-        else:        nxt = [x, y + 1]
+    print("Training coroutine finished")
+def showConfigValuesOnScreen():
+    info_lines = [
+        f"Current Episode: {CURRENT_EPISODE}/{EPISODES}",
+        f"Max Steps/Episode: {max_steps}",
+        f"Gamma: {gamma:.2f}",
+        f"Epsilon0: {EPS0:.2f}, Epsilon Min: {EPS_MIN:.2f}, Epsilon Decay: {EPS_DECAY:.4f}",
+        f"Current Epsilon: {max(EPS_MIN, EPS0 * (EPS_DECAY ** (CURRENT_EPISODE-1))):.4f}",
+        f"Alpha0: {ALPHA0:.2f}, Alpha Min: {ALPHA_MIN:.2f}, Alpha Decay: {ALPHA_DECAY:.4f}",
+        f"Current Alpha: {max(ALPHA_MIN, ALPHA0 * (ALPHA_DECAY ** (CURRENT_EPISODE-1))):.4f}",
+        f"Number of Returns to Origin: {numOfReturns}",
+        f"First Find Episode: {firstEpisode if firstFind else 'N/A'}",
+        f"Agent Total Reward: {agent.activeReward}"
+    ]
 
-        # If the chosen action is somehow invalid (shouldn't happen), stop
-        if a not in acts:
-            print("Chosen illegal action in visualizer; stopping.")
-            break
+    for i, line in enumerate(info_lines):
+        text_surf = HYPERPARAMETERS_FONT.render(line, True, pygame.Color("white"))
+        screen.blit(text_surf, (10, 10 + i * 30))
+def draw_Main_Menu():
+    start_button.draw()
+    settings_button.draw()
+def draw_Settings_Menu():
 
-        if tuple(nxt) in visited:
-            print("Loop detected, stopping path trace.")
-            break
+    mainMenu_button.draw()
+    # Draw input boxes and labels
+    for i, input_box in enumerate(input_boxes):
+        input_box.update()
+        input_box.draw(screen)
+        label_surf, label_pos = input_box_label[i]
+        screen.blit(label_surf, label_pos)
 
-        state = nxt
-        visited.add(tuple(state))
-        path.append(tuple(state))
 
-    print("Optimal path:", path)
 
-    # Draw grid
-    grid_repr = [[" . " for _ in range(gridWidth)] for _ in range(gridHeight)]
-    for (x, y) in path[1:-1]:
-        grid_repr[y][x] = " * "
-    sx, sy = start
-    gx, gy = goal
-    grid_repr[sy][sx] = " S "
-    grid_repr[gy][gx] = " G "
+clock = pygame.time.Clock()
 
-    print("\nGrid with path:")
-    for y in range(gridHeight):
-        print("".join(grid_repr[y]))
+start_button = Button(screen,"RL - Visualisation","RL - Visualisation", BUTTON_FONT, BUTTON_FONT_INFLATED, 200,100, (SCREEN_WIDTH/2 - 100, SCREEN_HEIGHT/2 - 50),7,20)
+settings_button = Button(screen,"Settings", "Settings", BUTTON_FONT, BUTTON_FONT_INFLATED, 200,100, (SCREEN_WIDTH/2 - 100, SCREEN_HEIGHT/2 + 100),7,20)
+mainMenu_button = Button(screen,"Main Menu", "Main_Menu", BUTTON_FONT, BUTTON_FONT_INFLATED, 200,100, (SCREEN_WIDTH/2 - 100, SCREEN_HEIGHT/2 + 250),7,20)
 
-# -----------------------------
-# Output
-# -----------------------------
-print_q_table(Q)
-print_optimal_path_visual(Q, start=initialPosition, goal=[goal_x, goal_y])
+# Settgings monitor variables
+# ACTIVE_COLOR = pygame.Color(193, 73, 83)
+ACTIVE_COLOR = pygame.Color(3, 29, 68)
+INACTIVE_COLOR = pygame.Color(255, 255, 255)
+# INACTIVE_COLOR = pygame.Color(230, 170, 104)
+TEXT_SAVED_COLOR = pygame.Color(178, 255, 169)
+
+input_boxes = []
+input_box_label = []
+input_box_width = 140
+input_box_height = 32
+input_box_x = SCREEN_WIDTH // 4 - 150
+input_box_y_start = SCREEN_HEIGHT // 4 - 100
+input_box_gap = 70
+labels = [
+    "Episodes",
+    "Max Steps/Episode",
+    "Gamma",
+    "Epsilon0",
+    "Epsilon Min",
+    "Epsilon Decay",
+    "Alpha0",
+    "Alpha Min",
+    "Alpha Decay"
+]
+variables = [
+    EPISODES, max_steps, gamma, EPS0, EPS_MIN, EPS_DECAY, ALPHA0, ALPHA_MIN, ALPHA_DECAY
+]
+default_values = [str(var) for var in variables]
+
+for i, label in enumerate(labels):
+    y = input_box_y_start + i * input_box_gap
+    
+    input_box = InputBox(input_box_x, y, input_box_width, input_box_height, INACTIVE_COLOR, ACTIVE_COLOR, TEXT_SAVED_COLOR, INPUT_BOX_FONT, default_values[i], variable=variables[i])
+    input_boxes.append(input_box)
+    label_surface = INPUT_BOX_FONT.render(label, True, pygame.Color("white"))
+    label_pos = (input_box_x, y - input_box_height + 5)
+    input_box_label.append((label_surface, label_pos))
+
+def apply_input_box_values():
+    global EPISODES, max_steps, gamma, EPS0, EPS_MIN, EPS_DECAY, ALPHA0, ALPHA_MIN, ALPHA_DECAY
+    mapping = [
+        ("int", "EPISODES"),
+        ("int", "max_steps"),
+        ("float", "gamma"),
+        ("float", "EPS0"),
+        ("float", "EPS_MIN"),
+        ("float", "EPS_DECAY"),
+        ("float", "ALPHA0"),
+        ("float", "ALPHA_MIN"),
+        ("float", "ALPHA_DECAY"),
+    ]
+    for i, box in enumerate(input_boxes):
+        val = box.variable
+        if val is None:
+            continue
+        typ, name = mapping[i]
+        val = int(val) if typ == "int" else float(val)
+
+        if name == "EPISODES": EPISODES = val
+        elif name == "max_steps": max_steps = val
+        elif name == "gamma": gamma = val
+        elif name == "EPS0": EPS0 = val
+        elif name == "EPS_MIN": EPS_MIN = val
+        elif name == "EPS_DECAY": EPS_DECAY = val
+        elif name == "ALPHA0": ALPHA0 = val
+        elif name == "ALPHA_MIN": ALPHA_MIN = val
+        elif name == "ALPHA_DECAY": ALPHA_DECAY = val
+
+
+
+
+
+screenArray = Monitors()
+activeMonitor = screenArray.monitors[0]
+
+Record_HeatMap = True
+HeatTable = [[0 for _ in range(maze1.maze_size_width)] for _ in range(maze1.maze_size_height)]
+
+running = True
+show_path = False
+show_config = False
+
+trainer = None
+training_active = False
+
+# Main loop of the program
+# constants to reuse
+BASE_RECT_SIZE = 100
+HMARGIN = 100
+VMARGIN = 100
+
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        if activeMonitor == "Settings":
+            for input_box in input_boxes:
+                if input_box.handle_event(event):
+                    apply_input_box_values()
+        if event.type == pygame.KEYDOWN and activeMonitor == "RL - Visualisation":
+            if event.key == pygame.K_i:
+                show_path = not show_path
+            if event.key == pygame.K_v: # Show Config Values on Screen
+                show_config = not show_config
+            if event.key == pygame.K_s:  # start/stop training
+                if not training_active:
+                    trainer = q_learning_coroutine(
+                        agent, maze1, Q,
+                        EPISODES, max_steps, gamma,
+                        EPS0, EPS_MIN, EPS_DECAY,
+                        ALPHA0, ALPHA_MIN, ALPHA_DECAY
+                    )
+                    training_active = True
+                    print("Training started")
+                else:
+                    training_active = False
+                    trainer = None
+                    print("Training stopped manually")
+
+    screen.fill((0, 0, 0))
+    if activeMonitor == "Main_Menu":
+        draw_Main_Menu()
+    elif activeMonitor == "Settings":
+        # draw settings menu
+        draw_Settings_Menu()
+    # draw maze and agent
+    elif activeMonitor == "RL - Visualisation":
+        maze1.draw_maze(BASE_RECT_SIZE, HMARGIN, VMARGIN, False, True)
+        maze1.draw_agent(agent, BASE_RECT_SIZE, HMARGIN, VMARGIN, agent_img)
+        if show_path:
+            maze1.draw_optimal_path(HMARGIN,VMARGIN,BASE_RECT_SIZE,maze1.start_pos)
+        if show_config:
+            showConfigValuesOnScreen()
+
+    # advance training coroutine a bit each frame
+    if training_active and trainer is not None:
+        steps_per_frame = 1  # increase to speed up training visual
+        try:
+            for _ in range(steps_per_frame):
+                next(trainer)
+        except StopIteration:
+            training_active = False
+            trainer = None
+            print("Training finished")
+
+    pygame.display.flip()
+    clock.tick(FPS)
+
+
+pygame.quit()
+if Record_HeatMap:
+    with open("output.csv", "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerows(HeatTable)

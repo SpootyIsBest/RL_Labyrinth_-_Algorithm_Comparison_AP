@@ -1,7 +1,16 @@
 # TODO 
 # Maze -
-    make the most optimal path from random position to the origin using the arrows
+
+# Data - 
+    Create structure for the DATA, and what values to collect
 # UI - 
-    Make the main menu
-     - make it functional
-     - Make there a settings for how many and what RL and notRL to compare + settings for the RL
+    Main Menu
+
+
+
+
+     # Second Phase
+     - Make there a settings for how many and what RL and notRL to compare
+### DONE
+# HEATMAP to csv on app closed
+# Settings in app

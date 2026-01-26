@@ -1,2 +1,6 @@
 pygame
 numpy
+matplotlib
+imageio
+imageio-ffmpeg
+plotly

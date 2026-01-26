@@ -4,9 +4,12 @@
 # Data - 
     Create structure for the DATA, and what values to collect
     Json - 
+        name,
+        description,
         max_Episode,
         firstFind,
         numOfReturns,
+        name,
         
 
 

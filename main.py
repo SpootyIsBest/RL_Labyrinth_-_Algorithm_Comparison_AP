@@ -64,7 +64,7 @@ rewardForFinish = 50
 rewardForValidMove = -1
 rewardForInvalidMove = -10
 
-EPISODES = 2000
+EPISODES = 5000
 CURRENT_EPISODE = 0
 max_steps = 100
 gamma = 1.0
@@ -72,21 +72,22 @@ gamma = 1.0
 numOfReturns = 0
 firstFind = False
 firstEpisode = None
+steps_per_frame = 1  # increase to speed up training visual
 
 # epsilon/alpha decay (monotonic with floors)
-EPS0, EPS_MIN, EPS_DECAY = 0.9, 0.05, 0.995
+EPS0, EPS_MIN, EPS_DECAY = 0.9, 0.05, 0.9995
 ALPHA0, ALPHA_MIN, ALPHA_DECAY = 0.72, 0.10, 0.997
 
 
 
 # Creating Maze from class maze
 # (maze_Width, maze_Height, origin_start_pos)
-maze1 = Maze(screen, SCREEN_WIDTH, SCREEN_HEIGHT, 10,10,[1,1])
+maze1 = Maze(screen, SCREEN_WIDTH, SCREEN_HEIGHT, 200,200,[1,1])
 
 # Make all arrows to point in the dirrection of the origin (necessary in order to make the random suffle work)
 maze1.create_default()
 # How many random steps is origin going to take to shuffle the maze (this function shuffles the maze)
-maze1.random_sequence(500000)
+maze1.random_sequence(5000000)
 # Calculating the starting position of the agent (algorithm)
 maze1.carve_walls_from_arrows()
 maze1.cal_init_pos()
@@ -114,6 +115,12 @@ def q_learning_coroutine(agent, maze, Q,
         state = agent.activeState[:]
         action = epsilon_greedy_action(state, Q, epsilon, maze)
 
+        if episode % 100 == 0 and Record_HeatMap:
+            with open(f"HeatMap{CURRENT_EPISODE}.csv", "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerows(HeatTable)
+
+
         for t in range(max_steps):
             if action is None:  # terminal state (goal)
                 if not firstFind:
@@ -121,6 +128,8 @@ def q_learning_coroutine(agent, maze, Q,
                     firstEpisode = CURRENT_EPISODE
                     firstFind = True
                 numOfReturns += 1
+                FindNotFind.append(CURRENT_EPISODE)
+
                 break
 
             reward, next_state = agent.ProcessNextAction(action)
@@ -238,24 +247,34 @@ labels = [
     "Epsilon Decay",
     "Alpha0",
     "Alpha Min",
-    "Alpha Decay"
+    "Alpha Decay",
+    "Steps per Frame (Visual Speed)",
+    "FPS"
 ]
 variables = [
-    EPISODES, max_steps, gamma, EPS0, EPS_MIN, EPS_DECAY, ALPHA0, ALPHA_MIN, ALPHA_DECAY
+    EPISODES, max_steps, gamma, EPS0, EPS_MIN, EPS_DECAY, ALPHA0, ALPHA_MIN, ALPHA_DECAY, steps_per_frame, FPS
 ]
 default_values = [str(var) for var in variables]
 
+current_x = input_box_x
+current_y = input_box_y_start
+column_gap = 150
+
 for i, label in enumerate(labels):
-    y = input_box_y_start + i * input_box_gap
-    
-    input_box = InputBox(input_box_x, y, input_box_width, input_box_height, INACTIVE_COLOR, ACTIVE_COLOR, TEXT_SAVED_COLOR, INPUT_BOX_FONT, default_values[i], variable=variables[i])
+    if current_y + input_box_height > SCREEN_HEIGHT:
+        current_x += input_box_width + column_gap
+        current_y = input_box_y_start
+
+    input_box = InputBox(current_x, current_y, input_box_width, input_box_height, INACTIVE_COLOR, ACTIVE_COLOR, TEXT_SAVED_COLOR, INPUT_BOX_FONT, default_values[i], variable=variables[i])
     input_boxes.append(input_box)
     label_surface = INPUT_BOX_FONT.render(label, True, pygame.Color("white"))
-    label_pos = (input_box_x, y - input_box_height + 5)
+    label_pos = (current_x, current_y - input_box_height + 5)
     input_box_label.append((label_surface, label_pos))
 
+    current_y += input_box_gap
+
 def apply_input_box_values():
-    global EPISODES, max_steps, gamma, EPS0, EPS_MIN, EPS_DECAY, ALPHA0, ALPHA_MIN, ALPHA_DECAY
+    global EPISODES, max_steps, gamma, EPS0, EPS_MIN, EPS_DECAY, ALPHA0, ALPHA_MIN, ALPHA_DECAY, steps_per_frame, FPS
     mapping = [
         ("int", "EPISODES"),
         ("int", "max_steps"),
@@ -266,6 +285,8 @@ def apply_input_box_values():
         ("float", "ALPHA0"),
         ("float", "ALPHA_MIN"),
         ("float", "ALPHA_DECAY"),
+        ("int", "steps_per_frame"),
+        ("int", "FPS")
     ]
     for i, box in enumerate(input_boxes):
         val = box.variable
@@ -283,6 +304,8 @@ def apply_input_box_values():
         elif name == "ALPHA0": ALPHA0 = val
         elif name == "ALPHA_MIN": ALPHA_MIN = val
         elif name == "ALPHA_DECAY": ALPHA_DECAY = val
+        elif name == "steps_per_frame": steps_per_frame = val
+        elif name == "FPS": FPS = val
 
 
 
@@ -293,6 +316,8 @@ activeMonitor = screenArray.monitors[0]
 
 Record_HeatMap = True
 HeatTable = [[0 for _ in range(maze1.maze_size_width)] for _ in range(maze1.maze_size_height)]
+
+FindNotFind = []
 
 running = True
 show_path = False
@@ -352,7 +377,6 @@ while running:
 
     # advance training coroutine a bit each frame
     if training_active and trainer is not None:
-        steps_per_frame = 1  # increase to speed up training visual
         try:
             for _ in range(steps_per_frame):
                 next(trainer)
@@ -367,6 +391,10 @@ while running:
 
 pygame.quit()
 if Record_HeatMap:
-    with open("output.csv", "w", newline="", encoding="utf-8") as f:
+    with open("HeatMap.csv", "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerows(HeatTable)
+
+with open("FindNotFind.csv", "w", newline="", encoding="utf-8") as f:
+    writer = csv.writer(f)
+    writer.writerows([[value] for value in FindNotFind])

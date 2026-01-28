@@ -5,7 +5,8 @@ from State import State
 
 
 class Maze:
-    def __init__(self, screen, SCREEN_WIDTH, SCREEN_HEIGHT, maze_size_width, maze_size_height, origin=[0,0]):
+    def __init__(self,name, screen, SCREEN_WIDTH, SCREEN_HEIGHT, maze_size_width, maze_size_height, origin=[0,0]):
+        self.name = name
         self.screen = screen
         self.SCREEN_WIDTH = SCREEN_WIDTH
         self.SCREEN_HEIGHT = SCREEN_HEIGHT

@@ -6,12 +6,20 @@
     Json - 
         name,
         description,
-        max_Episode,
+        max_Episodes,
+        stepsPerEpisode,
         firstFind,
         numOfReturns,
-        name,
+        FindNotFind[],
+        FindNotFindPercentage[20%,80%], # 20% successful finds, 80% not successful finds
+        HEATMAP[],
+        FinalPath,
+        FinalPath_numOfSteps
+
+
         
 
+# Make the screen fullscreen for presentation purposes
 
 # UI - 
     Main Menu

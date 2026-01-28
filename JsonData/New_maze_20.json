@@ -1,0 +1,21 @@
+{
+    "name": "New_maze_2.0",
+    "description": "Testing description",
+    "algorithm": "Q-Learning",
+    "MazeSize": [
+        30,
+        30
+    ],
+    "NumOfEpisodes": 900,
+    "stepsPerEpisode": 450,
+    "firstFind": -1,
+    "numOfReturns": -1,
+    "FindNotFind": [],
+    "FindNotFindPercentage": [
+        -1,
+        -1
+    ],
+    "HEATMAP": [],
+    "FinalPath": [],
+    "FinalPath_numOfSteps": -1
+}

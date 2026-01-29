@@ -68,6 +68,7 @@ gamma = 1.0 # Discount factor for future rewards
 numOfReturns = 0 # How many times the agent returned to the origin
 firstFind = False # indicates if the agent found the origin at least once
 firstEpisode = None # The episode number when the agent found the origin for the first time
+FindOriginEpisodes = [] # Record of episodes where agent found the origin (the episode number)
 steps_per_frame = 1  # increase to speed up training visual
 
 # epsilon/alpha decay (monotonic with floors)
@@ -99,7 +100,6 @@ activeMonitor = screenArray.monitors[0]
 Record_HeatMap = True # Flag to record heatmap data
 # HeatTable = [[0 for _ in range(maze.maze_size_width)] for _ in range(maze.maze_size_height)] # 2D list to store heatmap data
 
-FindOriginEpisodes = [] # Record of episodes where agent found the origin (the episode number)
 
 running = True # Main loop flag
 show_path = False # Flag to toggle optimal path display
@@ -297,16 +297,21 @@ def create_maze_from_json(json_file_name):
     # max_steps can be added to JSON if needed
     # Create Maze
     maze = Maze(maze_name, screen, SCREEN_WIDTH, SCREEN_HEIGHT, maze_width, maze_height, origin_start_pos)
+    # Make all arrows to point in the dirrection of the origin (necessary in order to make the random suffle work)
     maze.create_default()
+    # How many random steps is origin going to take to shuffle the maze (this function shuffles the maze)
     maze.random_sequence(5000000)
+    # Carve walls from arrows (necessary in order to make the random suffle work)
     maze.carve_walls_from_arrows()
+    # Calculating the starting position of the agent (algorithm)
     maze.cal_init_pos()
+    # Create optimal path from start to origin
     maze.create_optimal_path(maze.start_pos)
+    # Create grid states for RL
     maze.create_grid_states(rewardForFinish,rewardForValidMove)
 
 
 # Settings monitor variables
-
 def initialize_settings_input_boxes():
     """Initialize input boxes for settings menu"""
     input_boxes = []
@@ -401,22 +406,7 @@ def apply_input_box_values():
 #     : Add all variables to JSON setup and make them editable from Setup Menu (settings menu is for runtime variables only OR remove settings menu entirely)
 
 
-# Creating Maze from class maze
-# (screen, screen_width,screen_height ,maze_Width, maze_Height, origin_start_pos)
-# maze1 = Maze("Maze1",screen, SCREEN_WIDTH, SCREEN_HEIGHT, 20,20,[1,1])
 
-# Make all arrows to point in the dirrection of the origin (necessary in order to make the random suffle work)
-# maze1.create_default()
-# # How many random steps is origin going to take to shuffle the maze (this function shuffles the maze)
-# maze1.random_sequence(5000000)
-# # Carve walls from arrows (necessary in order to make the random suffle work)
-# maze1.carve_walls_from_arrows()
-# # Calculating the starting position of the agent (algorithm)
-# maze1.cal_init_pos()
-# # Create optimal path from start to origin
-# maze1.create_optimal_path(maze1.start_pos)
-# # Create grid states for RL
-# maze1.create_grid_states(rewardForFinish,rewardForValidMove)
 
 
 
@@ -495,21 +485,45 @@ def showConfigValuesOnScreen():
 
 
 
-def save_json_data(maze, desccription="Test description", max_episodes=-1, steps_per_episode=-1, first_find=-1, num_of_returns=-1, find_not_find=[], find_not_find_percentage=[-1,-1], heatmap=[], final_path=[], final_path_num_of_steps=-1):
-    data = {
-        "name": maze.name,
-        "description": desccription,
-        "max_Episodes": max_episodes,
-        "stepsPerEpisode": steps_per_episode,
-        "firstFind": first_find,
-        "numOfReturns": num_of_returns,
-        "FindNotFind": find_not_find,
-        "FindNotFindPercentage": find_not_find_percentage,
-        "HEATMAP": heatmap,
-        "FinalPath": final_path,
-        "FinalPath_numOfSteps": final_path_num_of_steps
-    }
-    with open("/JsonData/config.json", "w") as f:
+def save_json_data(maze,
+                desccription="Test description",
+                max_episodes=-1,
+                steps_per_episode=-1,
+                first_find=-1,
+                num_of_returns=-1,
+                FindOriginEpisodes=[],
+                find_not_find_percentage=[-1,-1],
+                heatmap=[],
+                final_path=[],
+                optimal_path=[],
+                final_path_num_of_steps=-1,
+                optimal_path_num_of_steps=-1
+                ):
+    # Load existing JSON to preserve setup data
+    json_file = f"JsonData/{new_json_file_name}.json"
+    try:
+        with open(json_file, "r") as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        # If no existing file, create new data
+        data = {
+            "name": maze.name,
+            "description": desccription
+        }
+    
+    # Update only the training result fields
+    data["firstFind"] = first_find
+    data["numOfReturns"] = num_of_returns
+    data["FindOriginEpisodes"] = FindOriginEpisodes
+    data["FindNotFindPercentage"] = find_not_find_percentage
+    data["HEATMAP"] = heatmap
+    data["FinalPath"] = final_path
+    data["OptimalPath"] = optimal_path
+    data["FinalPath_numOfSteps"] = final_path_num_of_steps
+    data["OptimalPath_numOfSteps"] = optimal_path_num_of_steps
+    
+    # Save back to the same JSON file
+    with open(json_file, "w") as f:
         json.dump(data, f, indent=4)
 
 
@@ -569,7 +583,7 @@ mainMenu_button = Button(screen,
                     )
 
 # With callback
-def on_toggle(is_on):
+def on_toggle_heatmap(is_on):
     global Record_HeatMap
     Record_HeatMap = is_on
     print(f"HeatMap recording: {is_on}")
@@ -577,7 +591,7 @@ def on_toggle(is_on):
 heatMap_Button_OnOFF = Button_On_Off(
                     screen,
                     "Record HeatMap",
-                    on_change_monitor=on_toggle,
+                    on_change_monitor=on_toggle_heatmap,
                     pos=(SCREEN_WIDTH - 250, SCREEN_HEIGHT - 100),
                     button_font=BUTTON_FONT,
                     button_font_inflated=BUTTON_FONT_INFLATED
@@ -713,13 +727,36 @@ while running:
 # End of main loop
 pygame.quit()
 
-# Save HeatTable to CSV
-if Record_HeatMap:
-    with open("HeatMap.csv", "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerows(HeatTable)
+# -----------------------------
+# Save Data to JSON
+# -----------------------------
 
-# Save FindOriginEpisodes to CSV
-with open("FindOriginEpisodes.csv", "w", newline="", encoding="utf-8") as f:
-    writer = csv.writer(f)
-    writer.writerows([[value] for value in FindOriginEpisodes])
+def save_heatmap_to_list(heatmap):
+    return [[heatmap[y][x] for x in range(len(heatmap[0]))] for y in range(len(heatmap))]
+
+heatmap_list = save_heatmap_to_list(HeatTable)
+save_json_data(
+    maze=maze,
+    first_find=firstEpisode if firstFind else -1,
+    num_of_returns=numOfReturns,
+    FindOriginEpisodes=FindOriginEpisodes,
+    find_not_find_percentage=[(len(FindOriginEpisodes)/EPISODES if EPISODES > 0 else 1)*100, ((EPISODES - len(FindOriginEpisodes))/EPISODES if EPISODES > 0 else 1)*100],
+    heatmap=heatmap_list,
+    optimal_path=maze.optimal_path,
+    final_path=[],
+    optimal_path_num_of_steps=len(maze.optimal_path),
+    final_path_num_of_steps=-1
+)
+
+
+
+# Save HeatTable to CSV
+# if Record_HeatMap:
+#     with open("HeatMap.csv", "w", newline="", encoding="utf-8") as f:
+#         writer = csv.writer(f)
+#         writer.writerows(HeatTable)
+
+# # Save FindOriginEpisodes to CSV
+# with open("FindOriginEpisodes.csv", "w", newline="", encoding="utf-8") as f:
+#     writer = csv.writer(f)
+#     writer.writerows([[value] for value in FindOriginEpisodes])

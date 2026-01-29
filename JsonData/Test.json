@@ -2,18 +2,22 @@
     "name": "Test",
     "description": "Test description",
     "algorithm": "Q-Learning",
-    "MazeSize": [10,10],
+    "MazeSize": [
+        10,
+        10
+    ],
     "NumOfEpisodes": -1,
     "stepsPerEpisode": -1,
     "rewardForFinish": 50,
     "rewardForValidMove": -1,
     "firstFind": -1,
     "numOfReturns": -1,
-    "FindOriginEpisodes": [],
-    "FindNotFindPercentage": [-1,-1],
+    "FindNotFind": [],
+    "FindNotFindPercentage": [
+        -1,
+        -1
+    ],
     "HEATMAP": [],
-    "OptimalPath": [],
     "FinalPath": [],
-    "OptimalPath_numOfSteps": -1,
     "FinalPath_numOfSteps": -1
 }

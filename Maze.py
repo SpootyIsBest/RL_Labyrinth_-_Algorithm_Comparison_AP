@@ -5,21 +5,42 @@ from State import State
 
 
 class Maze:
-    def __init__(self,name, screen, SCREEN_WIDTH, SCREEN_HEIGHT, maze_size_width, maze_size_height, origin=[0,0]):
+    # Initialization of the Maze class
+    def __init__(self, 
+                name,
+                screen,
+                SCREEN_WIDTH,
+                SCREEN_HEIGHT,
+                maze_size_width,
+                maze_size_height,
+                origin=[0,0]
+                ):
+        # Maze properties
+        ## Name of the maze (JSON filne name)
         self.name = name
+        ## Pygame screen to draw on
         self.screen = screen
+        ## Screen dimensions
         self.SCREEN_WIDTH = SCREEN_WIDTH
         self.SCREEN_HEIGHT = SCREEN_HEIGHT
+        # Maze dimensions
         self.maze_size_width = maze_size_width
         self.maze_size_height = maze_size_height
+        # Position of the origin (goal) cell (top-left is [0,0])
         self.origin_cor = origin
+        # Set of possible cell options
         self.cell_options = ["Up", "Right", "Down", "Left", "Center"] # ["Up", "Right", "Down", "Left", "Center"] ["↑","→","↓","←","•"]
+        # Maze grid and walls initialization
         self.maze_grid = [["" for _ in range(maze_size_height)] for _ in range(maze_size_width)]
         self.maze_walls = [[["Wall" for _ in range(4)] for _ in range(maze_size_height)] for _ in range(maze_size_width)]
+        # Set the agent start position (will be calculated later) to top-left [0,0] as default
         self.start_pos = [0,0]
+        # Optimal path initialization
         self.optimal_path = []
+        # Grid states initialization
         self.gridStates = []
 
+    # Create a default maze layout with arrows pointing to the origin (for labirynt algorithm)
     def create_default(self):
         for y in range(self.maze_size_height):
             for x in range(self.maze_size_width):
@@ -29,6 +50,7 @@ class Maze:
                 elif y > self.origin_cor[1]:    self.maze_grid[x][y] = self.cell_options[0] # Arrow Down
                 elif y < self.origin_cor[1]:    self.maze_grid[x][y] = self.cell_options[2] # Arrow Up
     
+    # Print the maze layout to the console (for debugging)
     def print_maze(self):
         symbols = {
             "Up": "↑",
@@ -45,6 +67,7 @@ class Maze:
             print(row)
         print("\n")
 
+    # Move the origin cell in the specified direction
     def move_origin(self, direction):
         if direction == "Up":
             self.maze_grid[self.origin_cor[0]][self.origin_cor[1]] = self.cell_options[0]
@@ -61,6 +84,7 @@ class Maze:
         
         self.maze_grid[self.origin_cor[0]][self.origin_cor[1]] = self.cell_options[-1]
 
+    # Create grid states for reinforcement learning
     def create_grid_states(self, rewardForFinish, rewardForValidMove):
         # Clear previous states if this is called multiple times
         self.gridStates = []
@@ -99,6 +123,7 @@ class Maze:
 
             self.gridStates.append(row)
 
+    # shuggfle the maze layout randomly (origin shift)
     def random_sequence(self, moves_num):
         movements = ["Up", "Down", "Left", "Right"]
         for _ in range(moves_num):
@@ -113,21 +138,22 @@ class Maze:
                 break  # legal move picked
             self.move_origin(random_move)
 
+    # Drawing functions
+    ## Draw wall functions
     def draw_wall_top(self, cor_x, cor_y, rect_size, grid_wall_width=2, color=pygame.Color(230, 170, 104)):
         top_rect = pygame.Rect((cor_x, cor_y - grid_wall_width/2), (rect_size, grid_wall_width)) # UP
         pygame.draw.rect(self.screen, color, top_rect)
-
     def draw_wall_bottom(self, cor_x, cor_y, rect_size, grid_wall_width=2, color=pygame.Color(230, 170, 104)):
         bottom_rect = pygame.Rect((cor_x, cor_y+rect_size - grid_wall_width/2), (rect_size, grid_wall_width)) # DOWN
         pygame.draw.rect(self.screen, color, bottom_rect)
     def draw_wall_left(self, cor_x, cor_y, rect_size, grid_wall_width=2, color=pygame.Color(230, 170, 104)):
         left_rect = pygame.Rect((cor_x - grid_wall_width/2, cor_y), (grid_wall_width, rect_size)) # LEFT
         pygame.draw.rect(self.screen, color, left_rect)
-
     def draw_wall_right(self, cor_x,cor_y,rect_size,grid_wall_width=2, color=pygame.Color(230, 170, 104)):
         right_rect = pygame.Rect((cor_x+rect_size - grid_wall_width/2, cor_y), (grid_wall_width, rect_size))  # RIGHT
         pygame.draw.rect(self.screen, color, right_rect)
 
+    ## Compute layout for drawing
     def compute_layout(self, rect_size, horizontal_margin, vertical_margin):
         avail_w = self.SCREEN_WIDTH  - (2 * horizontal_margin)
         avail_h = self.SCREEN_HEIGHT - (2 * vertical_margin)
@@ -144,6 +170,7 @@ class Maze:
 
         return rect_size_final, gx, gy, grid_w, grid_h
     
+    ## Draw the maze on the screen
     def draw_maze(self, rect_size, horizontal_margin, vertical_margin,
                   draw_arrows=True, draw_walls=True):
 
@@ -210,10 +237,13 @@ class Maze:
         origin_y = self.origin_cor[1] * rect_size + gy + rect_size / 4
         origin_rect = pygame.Rect((origin_x, origin_y), (rect_size / 2, rect_size / 2))
         pygame.draw.rect(self.screen, pygame.Color(255, 0, 0), origin_rect)
+    
+    ## Draw agent on the maze
     def draw_agent(self, agent, rect_size, horizontal_margin, vertical_margin, img):
+
         rect_size, gx, gy, grid_w, grid_h = self.compute_layout(
-            rect_size, horizontal_margin, vertical_margin
-        )
+                                                    rect_size, horizontal_margin, vertical_margin
+                                                )
 
         ax, ay = agent.activeState  # [x, y] in grid coordinates
 
@@ -227,6 +257,55 @@ class Maze:
 
         self.screen.blit(img, (draw_x, draw_y))
 
+    ## Draw Q-values on the maze
+    def draw_q_values(self, Q, rect_size, horizontal_margin, vertical_margin):
+        rect_size_final, gx, gy, grid_w, grid_h = self.compute_layout(
+                                                        rect_size, horizontal_margin, vertical_margin)
+        
+        font = pygame.font.SysFont(None, int(rect_size_final * 0.2))
+        for y in range(self.maze_size_height):
+            for x in range(self.maze_size_width):
+                cor_x = x * rect_size_final + gx
+                cor_y = y * rect_size_final + gy
+
+                q_values = Q[y, x]  # Q-values for the current cell
+
+                # Positions for each action's Q-value
+                positions = {
+                    0: (cor_x + rect_size_final * 0.1, cor_y + rect_size_final * 0.4),  # Left
+                    1: (cor_x + rect_size_final * 0.7, cor_y + rect_size_final * 0.4),  # Right
+                    2: (cor_x + rect_size_final * 0.4, cor_y + rect_size_final * 0.1),  # Up
+                    3: (cor_x + rect_size_final * 0.4, cor_y + rect_size_final * 0.7)   # Down
+                }
+
+                for action, pos in positions.items():
+                    q_value = q_values[action]
+                    # draw Q-value text with different color based on each others value
+                    # green for max, red for min, orange for others
+                    # Dont draw 0 values
+                    if q_value == 0:
+                        continue
+                    max_q = max(q_values)
+                    min_q = min(q_values)
+                    if q_value == max_q:
+                        color = pygame.Color("green")
+                    elif q_value == min_q:
+                        color = pygame.Color("red")
+                    else:
+                        color = pygame.Color("orange")
+                    q_text = font.render(f"{q_value:.2f}", True, color)
+                    self.screen.blit(q_text, pos)
+
+    ### print Q-values to console (for debugging)
+    def print_q_values(self, Q):
+        print(f"{'State':>8} | {'Left':>7} {'Right':>7} {'Up':>7} {'Down':>7}")
+        print("-" * 42)
+        for y in range(self.maze_size_height):
+            for x in range(self.maze_size_width):
+                values = Q[y, x]
+                print(f"({x},{y})   | {values[0]:7.2f} {values[1]:7.2f} {values[2]:7.2f} {values[3]:7.2f}")
+            print("-" * 42)
+    ## Carve walls based on arrows (to create paths)
     def carve_walls_from_arrows(self):
         for y in range(self.maze_size_height):
             for x in range(self.maze_size_width):
@@ -253,7 +332,8 @@ class Maze:
                             self.maze_walls[x+1][y][2] = ""
                     case "Center":
                         continue
-
+    
+    ## Draw arrow polygon between two points
     def arrow_polygon(self,start, end, shaft_width=4, head_len=14, head_width=12):
         x1, y1 = start
         x2, y2 = end
@@ -291,7 +371,8 @@ class Maze:
 
         # Round for crisp pixels
         return [(int(round(x)), int(round(y))) for (x, y) in pts]
-        
+
+    ## Draw rectangle with outline (for maze boundary)  
     def draw_rect_with_outline(self,
                                pos,
                                w,
@@ -305,6 +386,7 @@ class Maze:
         pygame.draw.rect(self.screen, bottom_outline_color, bottom_rect)
         pygame.draw.rect(self.screen, top_rect_color, top_rect)
 
+    # Calculate initial agent position based on origin location (furthest from origin ; "opposite corner")
     def cal_init_pos(self):
         o_cor_x = self.origin_cor[0]
         o_cor_y = self.origin_cor[1]
@@ -320,6 +402,7 @@ class Maze:
         
         self.start_pos[0], self.start_pos[1] = init_pos_x, init_pos_y
     
+    # Create optimal path from initial position to origin (for display)
     def create_optimal_path(self,init_pos):
         starting_pos = init_pos
         notInOrigin = True
@@ -341,7 +424,8 @@ class Maze:
                 case "Center":
                     notInOrigin = False
         # print("Most optimal way was found")
-        
+
+    ## Draw optimal path on the maze
     def draw_optimal_path(self,horizontal_margin,vertical_margin, rect_size, starting_pos):
 
         opt_path = self.optimal_path

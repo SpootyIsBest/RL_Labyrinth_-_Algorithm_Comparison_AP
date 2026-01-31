@@ -87,8 +87,8 @@ HeatTable = None
 
 # constants to reuse
 BASE_RECT_SIZE = 100 # base size of maze cells
-HMARGIN = 100 # horizontal margin
-VMARGIN = 100 # vertical margin
+HMARGIN = 10 # horizontal margin
+VMARGIN = 10 # vertical margin
 
 # Initialize monitors
 screenArray = Monitors()
@@ -104,6 +104,7 @@ Record_HeatMap = True # Flag to record heatmap data
 running = True # Main loop flag
 show_path = False # Flag to toggle optimal path display
 show_config = False # Flag to toggle config values display
+show_q_values = False # Flag to toggle Q-values display
 
 trainer = None # Coroutine for training
 training_active = False # Flag to indicate if training is active
@@ -360,7 +361,7 @@ def initialize_settings_input_boxes():
 # Initialize settings input boxes
 input_boxes, input_box_label = initialize_settings_input_boxes()
 
-
+# Apply values from settings input boxes
 def apply_input_box_values():
     global gamma, EPS0, EPS_MIN, EPS_DECAY, ALPHA0, ALPHA_MIN, ALPHA_DECAY, steps_per_frame, FPS
     mapping = [
@@ -427,10 +428,10 @@ def q_learning_coroutine(agent, maze, Q,
         state = agent.activeState[:]
         action = epsilon_greedy_action(state, Q, epsilon, maze)
 
-        if episode % 100 == 0 and Record_HeatMap:
-            with open(f"HeatMap{CURRENT_EPISODE}.csv", "w", newline="", encoding="utf-8") as f:
-                writer = csv.writer(f)
-                writer.writerows(HeatTable)
+        # if episode % 100 == 0 and Record_HeatMap:
+        #     with open(f"HeatMap{CURRENT_EPISODE}.csv", "w", newline="", encoding="utf-8") as f:
+        #         writer = csv.writer(f)
+        #         writer.writerows(HeatTable)
 
 
         for t in range(max_steps):
@@ -497,7 +498,8 @@ def save_json_data(maze,
                 final_path=[],
                 optimal_path=[],
                 final_path_num_of_steps=-1,
-                optimal_path_num_of_steps=-1
+                optimal_path_num_of_steps=-1,
+                Q_table = None
                 ):
     # Load existing JSON to preserve setup data
     json_file = f"JsonData/{new_json_file_name}.json"
@@ -521,7 +523,8 @@ def save_json_data(maze,
     data["OptimalPath"] = optimal_path
     data["FinalPath_numOfSteps"] = final_path_num_of_steps
     data["OptimalPath_numOfSteps"] = optimal_path_num_of_steps
-    
+    # Convert NumPy array to list for JSON serialization
+    data["Q_table"] = Q_table.tolist() if Q_table is not None else None
     # Save back to the same JSON file
     with open(json_file, "w") as f:
         json.dump(data, f, indent=4)
@@ -668,6 +671,8 @@ while running:
                 input_box.handle_event(event)
         
         if event.type == pygame.KEYDOWN and activeMonitor == "RL - Visualisation":
+            if event.key == pygame.K_q:
+                show_q_values = not show_q_values
             if event.key == pygame.K_i:
                 show_path = not show_path
             if event.key == pygame.K_v: # Show Config Values on Screen
@@ -710,6 +715,9 @@ while running:
         # show config values if toggledF
         if show_config:
             showConfigValuesOnScreen()
+        # show Q-values if toggled
+        if show_q_values:
+            maze.draw_q_values(Q, BASE_RECT_SIZE, HMARGIN, VMARGIN)
 
     # advance training coroutine a bit each frame
     if training_active and trainer is not None:
@@ -745,10 +753,14 @@ save_json_data(
     optimal_path=maze.optimal_path,
     final_path=[],
     optimal_path_num_of_steps=len(maze.optimal_path),
-    final_path_num_of_steps=-1
+    final_path_num_of_steps=-1,
+    Q_table = Q
 )
 
+print(f"Saved training data to JsonData/{new_json_file_name}.json")
 
+
+# maze.print_q_values(Q)
 
 # Save HeatTable to CSV
 # if Record_HeatMap:

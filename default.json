@@ -15,5 +15,6 @@
     "OptimalPath": [],
     "FinalPath": [],
     "OptimalPath_numOfSteps": -1,
-    "FinalPath_numOfSteps": -1
+    "FinalPath_numOfSteps": -1,
+    "QTable": {}
 }

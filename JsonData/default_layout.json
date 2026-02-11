@@ -1,0 +1,32 @@
+{
+    "name": "default_layout",
+    "description": "Default maze layout template - 10x10 grid",
+    "algorithm": [
+        10,
+        10
+    ],
+    "MazeSize": [
+        5,
+        5
+    ],
+    "NumOfEpisodes": [
+        0,
+        0
+    ],
+    "stepsPerEpisode": [],
+    "rewardForFinish": 100,
+    "rewardForValidMove": 50,
+    "firstFind": -1,
+    "numOfReturns": -1,
+    "FindOriginEpisodes": [],
+    "FindNotFindPercentage": [
+        -1,
+        -1
+    ],
+    "HEATMAP": [],
+    "OptimalPath": [],
+    "FinalPath": [],
+    "OptimalPath_numOfSteps": -1,
+    "FinalPath_numOfSteps": -1,
+    "QTable": {}
+}

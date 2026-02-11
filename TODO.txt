@@ -32,3 +32,25 @@
 ### DONE
 # HEATMAP to csv on app closed
 # Settings in app
+
+
+
+
+
+
+# ROAD Map 
+Start
+├── RL           
+│   ├── New_Maze
+│   │   └── Save_To_Json
+│   │       ├── Start_Rl
+│   │       │   └── Maze_Visualisation 
+│   │       └── Settings
+│   └── Load_Maze
+│       └── Load_Layout_Json
+│           ├── Start_Rl
+│           │   └── Maze_Visualisation 
+│           └── Settings
+└── Not-RL            
+    └── Choose algorithm
+        └── Maze_Visualisation

@@ -11,6 +11,7 @@ from Monitors import Monitors
 from Button import Button
 from Agent import Agent
 from Button_On_Off import Button_On_Off
+from Drop_Down_Menu import Drop_Down_Menu
 
 #-----------------------------
 # Pygame Setup
@@ -19,7 +20,6 @@ from Button_On_Off import Button_On_Off
 # Initialize Pygame
 pygame.init()
 
-# Screen width and height (on monitor) 
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
 
@@ -55,19 +55,19 @@ agent_img = pygame.transform.smoothscale(agent_img, (32, 32))
 # Config - Default Settings
 # -----------------------------
 
-FPS = 200 # Frames per second for Pygame display
+FPS = 200 # FPS for Pygame display
 
 rewardForFinish = 50 # Reward for reaching the origin
 rewardForValidMove = -1 # Penalty for each valid move
 
-EPISODES = 5000 # Total number of episodes for training
-CURRENT_EPISODE = 0 # To keep track of the current episode during training
+EPISODES = 5000 
+CURRENT_EPISODE = 0 
 max_steps = 100 # Max steps per episode
 gamma = 1.0 # Discount factor for future rewards
 
-numOfReturns = 0 # How many times the agent returned to the origin
-firstFind = False # indicates if the agent found the origin at least once
-firstEpisode = None # The episode number when the agent found the origin for the first time
+numOfReturns = 0
+firstFind = False
+firstEpisode = None
 FindOriginEpisodes = [] # Record of episodes where agent found the origin (the episode number)
 steps_per_frame = 1  # increase to speed up training visual
 
@@ -78,8 +78,9 @@ ALPHA0, ALPHA_MIN, ALPHA_DECAY = 0.72, 0.10, 0.997 # initial alpha, min alpha, d
 # Maze Initialization
 # -----------------------------
 maze = None
+maze_layout = None
 agent = None
-Q = None
+Q = None # Q-Table
 HeatTable = None
 # -----------------------------
 # Main Program Variables
@@ -92,22 +93,27 @@ VMARGIN = 10 # vertical margin
 
 # Initialize monitors
 screenArray = Monitors()
+
 # Set initial active monitor
 activeMonitor = screenArray.monitors[0]
 
-# TODO : Make Record_HeatMap toggleable from Settings menu
-#      : Create HeatTable with maze size from JSON setup
-Record_HeatMap = True # Flag to record heatmap data
-# HeatTable = [[0 for _ in range(maze.maze_size_width)] for _ in range(maze.maze_size_height)] # 2D list to store heatmap data
+# -----------------------------
+# FLAGS and Variables
+# -----------------------------
 
+# Main loop flag
+running = True
+# Flags for settings
+Record_HeatMap = True 
 
-running = True # Main loop flag
-show_path = False # Flag to toggle optimal path display
-show_config = False # Flag to toggle config values display
-show_q_values = False # Flag to toggle Q-values display
+# Flags for RL Visualisation display options
+show_path = False 
+show_config = False 
+show_q_values = False 
+training_active = False # Indicater if training is active
 
 trainer = None # Coroutine for training
-training_active = False # Flag to indicate if training is active
+
 
 # -----------------------------
 # Helpers for RL training
@@ -153,7 +159,7 @@ def load_json_for_setup():
     """Load JSON data and create input boxes"""
     json_file = f"JsonData/default.json"
     if not os.path.exists(json_file):
-        json_file = f"default.json"
+        json_file = f"default_data.json"
     
     try:
         with open(json_file, "r") as f:
@@ -162,7 +168,7 @@ def load_json_for_setup():
         # Create default JSON if it doesn't exist
         if not os.path.exists("JsonData"):
             os.makedirs("JsonData", exist_ok=True)
-        shutil.copy("default.json", "JsonData/default.json")
+        shutil.copy("default_data.json", "JsonData/default.json")
         with open("JsonData/default.json", "r") as f:
             data = json.load(f)
     
@@ -279,18 +285,31 @@ def create_maze_from_json(json_file_name):
     with open(json_file, "r") as f:
         data = json.load(f)
     maze_name = data.get("name", "MAZE_NAME_NOT_FOUND")
-    maze_width = data.get("MazeSize", 3)[0]
-    maze_height = data.get("MazeSize", 3)[1]
+    maze_width = data.get("MazeSize", [3, 3])[0]
+    maze_height = data.get("MazeSize", [3, 3])[1]
     origin_start_pos = [1,1] # default origin start pos
     rewardForFinish = data.get("rewardForFinish", 50)
     rewardForValidMove = data.get("rewardForValidMove", -1)
     # Load training parameters from JSON
     num_episodes = data.get("NumOfEpisodes", -1)
+    # Ensure num_episodes is an integer
+    try:
+        num_episodes = int(num_episodes) if not isinstance(num_episodes, int) else num_episodes
+    except (ValueError, TypeError):
+        num_episodes = -1
+    
     if num_episodes > 0:
         EPISODES = num_episodes
     else:
         EPISODES = 99
+    
     steps_per_episode = data.get("stepsPerEpisode", -1)
+    # Ensure steps_per_episode is an integer
+    try:
+        steps_per_episode = int(steps_per_episode) if not isinstance(steps_per_episode, int) else steps_per_episode
+    except (ValueError, TypeError):
+        steps_per_episode = -1
+    
     if steps_per_episode > 0:
         max_steps = steps_per_episode
     else:
@@ -310,7 +329,6 @@ def create_maze_from_json(json_file_name):
     maze.create_optimal_path(maze.start_pos)
     # Create grid states for RL
     maze.create_grid_states(rewardForFinish,rewardForValidMove)
-
 
 # Settings monitor variables
 def initialize_settings_input_boxes():
@@ -394,23 +412,14 @@ def apply_input_box_values():
 
 
 
-# TODO: Load maze parameters from JSON setup
-#     : Create maze based on loaded parameters from JSON: Done
-#     : Adjust Agent initialization accordingly: Done
-#     : Adjust Q-Table size accordingly: Done
-#     : Adjust HeatTable size accordingly: Done
-#     : Adjust agent initialization accordingly: Done
-#     : Make sure to handle any exceptions or errors in loading/creating maze: Done
-#     : Make sure to update any other parts of the code that depend on maze size or parameters: Done 
-#     : Make sure to update variables when the RL training ENDS to the JSON(firstFind, numOfReturns, etc..)
+# TODO:
 #     : Create seed for random generator of maze shuffling from JSON setup
-#     : Add all variables to JSON setup and make them editable from Setup Menu (settings menu is for runtime variables only OR remove settings menu entirely)
 
 
 
-
-
-
+# -----------------------------
+# Q-Learning Coroutine
+# -----------------------------
 def q_learning_coroutine(agent, maze, Q,
                          EPISODES, max_steps, gamma,
                          EPS0, EPS_MIN, EPS_DECAY,
@@ -465,6 +474,10 @@ def q_learning_coroutine(agent, maze, Q,
 
     print("Training coroutine finished")
 
+# -----------------------------
+# Display Helpers
+# -----------------------------
+
 def showConfigValuesOnScreen():
     info_lines = [
         f"Current Episode: {CURRENT_EPISODE}/{EPISODES}",
@@ -483,8 +496,9 @@ def showConfigValuesOnScreen():
         text_surf = HYPERPARAMETERS_FONT.render(line, True, pygame.Color("white"))
         screen.blit(text_surf, (10, 10 + i * 30))
 
-
-
+# -----------------------------
+# JSON Data Saving after training
+# -----------------------------
 
 def save_json_data(maze,
                 desccription="Test description",
@@ -499,7 +513,14 @@ def save_json_data(maze,
                 optimal_path=[],
                 final_path_num_of_steps=-1,
                 optimal_path_num_of_steps=-1,
-                Q_table = None
+                Q_table=None,
+                gamma_val=1.0,
+                eps0=0.9,
+                eps_min=0.05,
+                eps_decay=0.9995,
+                alpha0=0.72,
+                alpha_min=0.10,
+                alpha_decay=0.997
                 ):
     # Load existing JSON to preserve setup data
     json_file = f"JsonData/{new_json_file_name}.json"
@@ -525,16 +546,22 @@ def save_json_data(maze,
     data["OptimalPath_numOfSteps"] = optimal_path_num_of_steps
     # Convert NumPy array to list for JSON serialization
     data["Q_table"] = Q_table.tolist() if Q_table is not None else None
+    # Save hyperparameters used during training
+    data["gamma"] = gamma_val
+    data["EPS0"] = eps0
+    data["EPS_MIN"] = eps_min
+    data["EPS_DECAY"] = eps_decay
+    data["ALPHA0"] = alpha0
+    data["ALPHA_MIN"] = alpha_min
+    data["ALPHA_DECAY"] = alpha_decay
     # Save back to the same JSON file
     with open(json_file, "w") as f:
         json.dump(data, f, indent=4)
-
 
 # -----------------------------
 # Monitor Management
 # -----------------------------
 
-# Change active monitor
 def set_active_monitor(monitor):
     global activeMonitor
     activeMonitor = monitor
@@ -544,7 +571,6 @@ def set_active_monitor(monitor):
 # -----------------------------
 
 # BUTTONS for Main Menu
-### BUTTONS for RL - Visualisation Monitor
 start_button = Button(screen,
                     "RL - Visualisation",
                     "RL - Visualisation",
@@ -557,7 +583,7 @@ start_button = Button(screen,
                     7,
                     20
                     )
-### BUTTONS for Settings Menu Monitor
+
 settings_button = Button(screen,
                     "Settings", 
                     "Settings",
@@ -570,8 +596,8 @@ settings_button = Button(screen,
                     7,
                     20
                     )
+
 # BUTTONS for Settings Menu
-### BUTTONS for Settings back to Main Menu Monitor
 mainMenu_button = Button(screen,
                     "Main Menu", 
                     "Main_Menu",
@@ -585,12 +611,11 @@ mainMenu_button = Button(screen,
                     20
                     )
 
-# With callback
+# HeatMap Record Toggle Button
 def on_toggle_heatmap(is_on):
     global Record_HeatMap
     Record_HeatMap = is_on
     print(f"HeatMap recording: {is_on}")
-
 heatMap_Button_OnOFF = Button_On_Off(
                     screen,
                     "Record HeatMap",
@@ -599,8 +624,66 @@ heatMap_Button_OnOFF = Button_On_Off(
                     button_font=BUTTON_FONT,
                     button_font_inflated=BUTTON_FONT_INFLATED
                     )
+# Function to save current configuration as layout JSON
+def save_current_as_layout(monitor):
+    """Save current hyperparameters and maze configuration as layout JSON"""
+    if maze is None:
+        print("No maze loaded. Cannot save layout.")
+        return
+    
+    # Create layout data
+    layout_data = {
+        "name": maze.name,
+        "description": f"Layout saved from settings on {maze.name}",
+        "MazeSize": [maze.maze_size_width, maze.maze_size_height],
+        "origin": maze.origin_cor,
+        "start_pos": maze.start_pos,
+        "layout": maze.get_layout(),
+        "NumOfEpisodes": EPISODES,
+        "stepsPerEpisode": max_steps,
+        "rewardForFinish": rewardForFinish,
+        "rewardForValidMove": rewardForValidMove,
+        "gamma": gamma,
+        "EPS0": EPS0,
+        "EPS_MIN": EPS_MIN,
+        "EPS_DECAY": EPS_DECAY,
+        "ALPHA0": ALPHA0,
+        "ALPHA_MIN": ALPHA_MIN,
+        "ALPHA_DECAY": ALPHA_DECAY
+    }
+    
+    # Ensure MazeLayouts folder exists
+    if not os.path.exists("MazeLayouts"):
+        os.makedirs("MazeLayouts", exist_ok=True)
+    
+    # Save to MazeLayouts folder
+    layout_file = f"MazeLayouts/{maze.name}_layout.json"
+    try:
+        with open(layout_file, "w") as f:
+            json.dump(layout_data, f, indent=4)
+        print(f"Saved layout to {layout_file}")
+        # Refresh the dropdown menu
+        maze_dropdown.refresh()
+    except Exception as e:
+        print(f"Error saving layout: {e}")
+
+# Save Layout Button for Settings
+save_layout_button = Button(
+    screen,
+    "Save as Layout",
+    "Settings",
+    save_current_as_layout,
+    BUTTON_FONT,
+    BUTTON_FONT_INFLATED,
+    180,
+    80,
+    (SCREEN_WIDTH - 50,100),
+    7,
+    20
+)
+
+
 # BUTTONS for Setup Menu
-### BUTTONS for Setup Menu - Save JSON and return to Main Menu
 save_setup_button = Button(
     screen,
     "Save JSON", 
@@ -615,20 +698,149 @@ save_setup_button = Button(
     20
 )
 
+# BUTTONS for Choose Menu
+setup_menu_button = Button(
+    screen,
+    "Create New Maze",
+    "Setup_Menu",
+    set_active_monitor,
+    BUTTON_FONT,
+    BUTTON_FONT_INFLATED,
+    250,
+    100,
+    (SCREEN_WIDTH/2 - 125, SCREEN_HEIGHT/2 - 100),
+    7,
+    20
+)
+
+load_menu_button = Button(
+    screen,
+    "Load Existing Maze",
+    "Load_Menu",
+    set_active_monitor,
+    BUTTON_FONT,
+    BUTTON_FONT_INFLATED,
+    250,
+    100,
+    (SCREEN_WIDTH/2 - 125, SCREEN_HEIGHT/2 + 50),
+    7,
+    20
+)
+
+# BUTTONS for Load Menu
+back_to_choose_button = Button(
+    screen,
+    "Back",
+    "Choose_Menu",
+    set_active_monitor,
+    BUTTON_FONT,
+    BUTTON_FONT_INFLATED,
+    150,
+    80,
+    (SCREEN_WIDTH - 250, SCREEN_HEIGHT - 120),
+    7,
+    20
+)
+
+# Drop-down menu for Load Menu
+def on_maze_selected(filename):
+    """Callback when a maze file is selected from dropdown - just stores selection"""
+    print(f"Selected: {filename}")
+
+# Load and Edit button functionality
+def load_and_edit_maze(monitor):
+    """Load selected JSON from dropdown and navigate to Setup_Menu for editing"""
+    global setup_input_boxes, setup_input_box_labels, setup_json_keys, new_json_file_name
+    
+    # Get selected file from dropdown
+    selected_file = maze_dropdown.get_selected_file()
+    if not selected_file:
+        print("No maze selected")
+        return
+    
+    # Load JSON from MazeLayouts folder
+    json_path = maze_dropdown.get_selected_path()
+    try:
+        with open(json_path, "r") as f:
+            data = json.load(f)
+        print(f"Loaded: {selected_file}")
+    except Exception as e:
+        print(f"Error loading JSON: {e}")
+        return
+    
+    # Store the filename for later use
+    new_json_file_name = selected_file.replace('.json', '')
+    
+    # Update setup_input_boxes with loaded values
+    setup_json_keys = list(data.keys())
+    max_input_fields = 8
+    editable_keys = setup_json_keys[:max_input_fields]
+    
+    # Update existing input boxes with new values
+    for i, key in enumerate(editable_keys):
+        if i < len(setup_input_boxes):
+            setup_input_boxes[i].text = str(data[key])
+            # Update label
+            label_surface = INPUT_BOX_FONT.render(f"{key}:", True, pygame.Color("white"))
+            label_pos = setup_input_box_labels[i][1]
+            setup_input_box_labels[i] = (label_surface, label_pos)
+    
+    # Navigate to Setup_Menu
+    set_active_monitor(monitor)
+    print(f"Loaded {selected_file} for editing")
+
+maze_dropdown = Drop_Down_Menu(
+    screen,
+    folder_path="MazeLayouts",
+    on_select_callback=on_maze_selected,
+    button_font=INPUT_BOX_FONT,
+    width=400,
+    height=50,
+    pos=(SCREEN_WIDTH // 2 - 200, 150),
+    max_visible_items=8
+)
+
+# Load & Edit button for Load Menu
+load_edit_button = Button(
+    screen,
+    "Load & Edit",
+    "Setup_Menu",
+    load_and_edit_maze,
+    BUTTON_FONT,
+    BUTTON_FONT_INFLATED,
+    200,
+    80,
+    (SCREEN_WIDTH // 2 - 100, 250),
+    7,
+    20
+)
+
 # -----------------------------
 # Draw Menus
 # -----------------------------
 
-# Draw Main Menu
+def draw_RL_Visualisation():
+    maze.draw_maze(BASE_RECT_SIZE, HMARGIN, VMARGIN, False, True)
+    maze.draw_agent(agent, BASE_RECT_SIZE, HMARGIN, VMARGIN, agent_img)
+    # draw optimal path if toggled
+    if show_path:
+        maze.draw_optimal_path(HMARGIN,VMARGIN,BASE_RECT_SIZE,maze.start_pos)
+    # show config values if toggled
+    if show_config:
+        showConfigValuesOnScreen()
+    # show Q-values if toggled
+    if show_q_values:
+        maze.draw_q_values(Q, BASE_RECT_SIZE, HMARGIN, VMARGIN)
+
 def draw_Main_Menu():
     start_button.draw()
     settings_button.draw()
 
-# Draw Settings Menu
 def draw_Settings_Menu():
 
     mainMenu_button.draw()
     heatMap_Button_OnOFF.draw()
+    save_layout_button.draw()
     # Draw input boxes and labels
     for i, input_box in enumerate(input_boxes):
         input_box.update()
@@ -636,7 +848,6 @@ def draw_Settings_Menu():
         label_surf, label_pos = input_box_label[i]
         screen.blit(label_surf, label_pos)
 
-# Draw Setup Menu
 def draw_Setup_Menu():
     # Display title
     title_surf = TITTLE_FONT.render("JSON Setup Editor", True, pygame.Color("white"))
@@ -652,6 +863,31 @@ def draw_Setup_Menu():
     # Draw buttons
     save_setup_button.draw()
 
+def draw_Load_Menu():
+    title_surf = TITTLE_FONT.render("Load Maze", True, pygame.Color("white"))
+    screen.blit(title_surf, (SCREEN_WIDTH // 2 - 150, 30))
+    
+    # Draw instructions
+    instruction_surf = INPUT_BOX_FONT.render("Select a maze layout to load:", True, pygame.Color("white"))
+    screen.blit(instruction_surf, (SCREEN_WIDTH // 2 - 200, 110))
+    
+    # Draw dropdown menu
+    maze_dropdown.draw()
+    
+    # Draw Load & Edit button
+    load_edit_button.draw()
+    
+    # Draw back button
+    back_to_choose_button.draw()
+
+def draw_Choose_Menu():
+    # Display title
+    title_surf = TITTLE_FONT.render("Choose Option", True, pygame.Color("white"))
+    screen.blit(title_surf, (SCREEN_WIDTH // 2 - 150, 100))
+    
+    # Draw buttons
+    setup_menu_button.draw()
+    load_menu_button.draw()
 
 # -----------------------------
 # Main Pygame Loop
@@ -670,10 +906,13 @@ while running:
             for input_box in setup_input_boxes:
                 input_box.handle_event(event)
         
+        if activeMonitor == "Load_Menu":
+            maze_dropdown.handle_event(event)
+        
         if event.type == pygame.KEYDOWN and activeMonitor == "RL - Visualisation":
-            if event.key == pygame.K_q:
+            if event.key == pygame.K_q: # Show Q-Values on Screen
                 show_q_values = not show_q_values
-            if event.key == pygame.K_i:
+            if event.key == pygame.K_i: # Show Optimal Path on Screen
                 show_path = not show_path
             if event.key == pygame.K_v: # Show Config Values on Screen
                 show_config = not show_config
@@ -694,30 +933,21 @@ while running:
 
     screen.fill((0, 0, 0))
 
-    # draw active monitor
-    if activeMonitor == "Setup_Menu":
-        # Draw setup menu
+    # draw active monitors
+    if activeMonitor == "Choose_Menu":
+        draw_Choose_Menu()
+    elif activeMonitor == "Setup_Menu":
         draw_Setup_Menu()
+    elif activeMonitor == "Load_Menu":
+        draw_Load_Menu()
     elif activeMonitor == "Main_Menu":
-        # Draw main menu
         draw_Main_Menu()
     elif activeMonitor == "Settings":
-        # draw settings menu
         draw_Settings_Menu()
     # draw maze and agent
     elif activeMonitor == "RL - Visualisation":
-        # draw RL visualisation monitor
-        maze.draw_maze(BASE_RECT_SIZE, HMARGIN, VMARGIN, False, True)
-        maze.draw_agent(agent, BASE_RECT_SIZE, HMARGIN, VMARGIN, agent_img)
-        # draw optimal path if toggled
-        if show_path:
-            maze.draw_optimal_path(HMARGIN,VMARGIN,BASE_RECT_SIZE,maze.start_pos)
-        # show config values if toggledF
-        if show_config:
-            showConfigValuesOnScreen()
-        # show Q-values if toggled
-        if show_q_values:
-            maze.draw_q_values(Q, BASE_RECT_SIZE, HMARGIN, VMARGIN)
+        draw_RL_Visualisation()
+        
 
     # advance training coroutine a bit each frame
     if training_active and trainer is not None:
@@ -754,7 +984,14 @@ save_json_data(
     final_path=[],
     optimal_path_num_of_steps=len(maze.optimal_path),
     final_path_num_of_steps=-1,
-    Q_table = Q
+    Q_table=Q,
+    gamma_val=gamma,
+    eps0=EPS0,
+    eps_min=EPS_MIN,
+    eps_decay=EPS_DECAY,
+    alpha0=ALPHA0,
+    alpha_min=ALPHA_MIN,
+    alpha_decay=ALPHA_DECAY
 )
 
 print(f"Saved training data to JsonData/{new_json_file_name}.json")

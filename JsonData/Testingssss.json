@@ -1,5 +1,5 @@
 {
-    "name": "Testing_3",
+    "name": "Testingssss",
     "description": "Test description",
     "algorithm": "Q-Learning",
     "MazeSize": [
@@ -141,21 +141,31 @@
     ],
     "OptimalPath": [
         "Right",
+        "Right",
         "Down",
-        "Right",
-        "Right",
-        "Right",
+        "Down",
+        "Down",
         "Down",
         "Down",
         "Left",
         "Down",
+        "Left",
+        "Down",
+        "Down",
+        "Down",
+        "Right",
+        "Up",
         "Right",
         "Down",
+        "Right",
+        "Right",
+        "Up",
+        "Right",
         "Right",
         "Center"
     ],
     "FinalPath": [],
-    "OptimalPath_numOfSteps": 13,
+    "OptimalPath_numOfSteps": 23,
     "FinalPath_numOfSteps": -1,
     "QTable": {},
     "Q_table": [
@@ -779,5 +789,12 @@
                 0.0
             ]
         ]
-    ]
+    ],
+    "gamma": 1.0,
+    "EPS0": 0.9,
+    "EPS_MIN": 0.05,
+    "EPS_DECAY": 0.9995,
+    "ALPHA0": 0.72,
+    "ALPHA_MIN": 0.1,
+    "ALPHA_DECAY": 0.997
 }

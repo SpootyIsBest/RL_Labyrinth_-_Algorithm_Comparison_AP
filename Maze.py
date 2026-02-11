@@ -40,7 +40,7 @@ class Maze:
         # Grid states initialization
         self.gridStates = []
 
-    # Create a default maze layout with arrows pointing to the origin (for labirynt algorithm)
+    # Create a default maze layout with arrows pointing to the origin (for labyrinth algorithm)
     def create_default(self):
         for y in range(self.maze_size_height):
             for x in range(self.maze_size_width):
@@ -49,6 +49,27 @@ class Maze:
                 elif x < self.origin_cor[0]:    self.maze_grid[x][y] = self.cell_options[1] # Arrow Right
                 elif y > self.origin_cor[1]:    self.maze_grid[x][y] = self.cell_options[0] # Arrow Down
                 elif y < self.origin_cor[1]:    self.maze_grid[x][y] = self.cell_options[2] # Arrow Up
+    
+    # Create maze from seeded layout (list of lists with arrows)
+    def create_from_layout(self, layout):
+        for y in range(self.maze_size_height):
+            for x in range(self.maze_size_width):
+                self.maze_grid[x][y] = layout[y][x]
+    
+    # Get the maze layout as a 2D list (row-major order for JSON serialization)
+    def get_layout(self):
+        """
+        Returns the maze layout in row-major order (y, x).
+        This format is suitable for JSON serialization and recreation via create_from_layout.
+        Returns: List of lists where layout[y][x] contains the cell direction.
+        """
+        layout = []
+        for y in range(self.maze_size_height):
+            row = []
+            for x in range(self.maze_size_width):
+                row.append(self.maze_grid[x][y])
+            layout.append(row)
+        return layout
     
     # Print the maze layout to the console (for debugging)
     def print_maze(self):

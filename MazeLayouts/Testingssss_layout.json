@@ -1,0 +1,149 @@
+{
+    "name": "Testingssss",
+    "description": "Layout saved from settings on Testingssss",
+    "MazeSize": [
+        10,
+        10
+    ],
+    "origin": [
+        6,
+        8
+    ],
+    "start_pos": [
+        0,
+        0
+    ],
+    "layout": [
+        [
+            "Right",
+            "Right",
+            "Down",
+            "Right",
+            "Right",
+            "Down",
+            "Down",
+            "Down",
+            "Left",
+            "Left"
+        ],
+        [
+            "Up",
+            "Left",
+            "Down",
+            "Left",
+            "Left",
+            "Down",
+            "Left",
+            "Down",
+            "Left",
+            "Up"
+        ],
+        [
+            "Down",
+            "Down",
+            "Down",
+            "Down",
+            "Left",
+            "Down",
+            "Left",
+            "Left",
+            "Right",
+            "Up"
+        ],
+        [
+            "Down",
+            "Down",
+            "Down",
+            "Right",
+            "Right",
+            "Down",
+            "Right",
+            "Up",
+            "Down",
+            "Up"
+        ],
+        [
+            "Down",
+            "Right",
+            "Down",
+            "Down",
+            "Left",
+            "Down",
+            "Up",
+            "Right",
+            "Right",
+            "Up"
+        ],
+        [
+            "Right",
+            "Down",
+            "Left",
+            "Down",
+            "Left",
+            "Left",
+            "Left",
+            "Down",
+            "Down",
+            "Left"
+        ],
+        [
+            "Down",
+            "Left",
+            "Left",
+            "Left",
+            "Down",
+            "Down",
+            "Down",
+            "Left",
+            "Left",
+            "Up"
+        ],
+        [
+            "Down",
+            "Up",
+            "Right",
+            "Up",
+            "Down",
+            "Down",
+            "Down",
+            "Left",
+            "Up",
+            "Down"
+        ],
+        [
+            "Down",
+            "Right",
+            "Down",
+            "Up",
+            "Right",
+            "Right",
+            "Center",
+            "Left",
+            "Up",
+            "Left"
+        ],
+        [
+            "Right",
+            "Up",
+            "Right",
+            "Right",
+            "Up",
+            "Right",
+            "Up",
+            "Up",
+            "Left",
+            "Left"
+        ]
+    ],
+    "NumOfEpisodes": 100,
+    "stepsPerEpisode": 50,
+    "rewardForFinish": 50,
+    "rewardForValidMove": -1,
+    "gamma": 1.0,
+    "EPS0": 0.9,
+    "EPS_MIN": 0.05,
+    "EPS_DECAY": 0.9995,
+    "ALPHA0": 0.72,
+    "ALPHA_MIN": 0.1,
+    "ALPHA_DECAY": 0.997
+}

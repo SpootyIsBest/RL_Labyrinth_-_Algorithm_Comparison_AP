@@ -1,0 +1,19 @@
+{
+    "name": "default_layout",
+    "description": "Default maze layout template - 10x10 grid",
+    "MazeSize": [10, 10],
+    "origin": [5, 5],
+    "start_pos": [0, 0],
+    "layout": [],
+    "NumOfEpisodes": 5000,
+    "stepsPerEpisode": 100,
+    "rewardForFinish": 50,
+    "rewardForValidMove": -1,
+    "gamma": 1.0,
+    "EPS0": 0.9,
+    "EPS_MIN": 0.05,
+    "EPS_DECAY": 0.9995,
+    "ALPHA0": 0.72,
+    "ALPHA_MIN": 0.10,
+    "ALPHA_DECAY": 0.997
+}

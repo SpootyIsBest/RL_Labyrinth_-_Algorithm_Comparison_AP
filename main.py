@@ -677,7 +677,7 @@ save_layout_button = Button(
     BUTTON_FONT_INFLATED,
     180,
     80,
-    (SCREEN_WIDTH - 50,100),
+    (SCREEN_WIDTH - 250,500),
     7,
     20
 )

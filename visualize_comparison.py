@@ -94,6 +94,63 @@ def get_color(name):
     return ALGO_COLORS.get(name, "#888888")
 
 
+def is_multi_run(data):
+    """Detect whether the loaded JSON is a multi-run batch."""
+    return "batch_metadata" in data and "runs" in data
+
+
+def extract_multi_run_metrics(data):
+    """Extract per-algorithm, per-run metrics from a multi-run JSON.
+    Returns a dict: { algo_name: { 'path_lengths': [...], 'times': [...], ... } }
+    """
+    metrics = {}
+    for run in data.get("runs", []):
+        algos = run.get("algorithms", {})
+        for algo_name, algo_data in algos.items():
+            if algo_name not in metrics:
+                metrics[algo_name] = {
+                    "type": algo_data.get("type", "?"),
+                    "path_lengths": [],
+                    "times": [],
+                    "efficiencies": [],
+                    "extra_steps": [],
+                    "success_rates": [],       # RL only
+                    "first_find_episodes": [],  # RL only
+                    "coverages": [],
+                    "path_found_flags": [],
+                    "optimal_path_lengths": [],
+                    "learning_curves": [],      # RL only: list of per-run data_points
+                }
+            m = metrics[algo_name]
+            cm = algo_data.get("common_metrics", {})
+            m["path_found_flags"].append(cm.get("path_found", False))
+            if cm.get("path_found", False):
+                m["path_lengths"].append(cm.get("path_length", 0))
+                m["efficiencies"].append(cm.get("path_efficiency", 0))
+                m["extra_steps"].append(cm.get("extra_steps_vs_optimal", 0))
+            m["times"].append(cm.get("time_to_solution_seconds", 0))
+
+            # Exploration coverage
+            expl = algo_data.get("exploration_data", {})
+            cov = expl.get("exploration_coverage_percent", 0)
+            m["coverages"].append(cov)
+
+            # RL-specific
+            if algo_data.get("type") == "RL":
+                pm = algo_data.get("performance_metrics", {})
+                m["success_rates"].append(pm.get("success_rate_percent", 0))
+                m["first_find_episodes"].append(pm.get("first_find_episode", -1))
+                lc = algo_data.get("learning_curve", {})
+                pts = lc.get("data_points", [])
+                if pts:
+                    m["learning_curves"].append(pts)
+
+            # Optimal path length from run metadata
+            run_meta = run.get("metadata", {})
+            m["optimal_path_lengths"].append(run_meta.get("optimal_path_length", 0))
+    return metrics
+
+
 def apply_style(fig, axes):
     """Apply clean light theme to figure and all axes."""
     fig.patch.set_facecolor(BACKGROUND_COLOR)
@@ -720,6 +777,541 @@ def chart_radar(data, algos, save=False):
 
 
 # ─────────────────────────────────────────────
+# Multi-Run Charts
+# ─────────────────────────────────────────────
+
+def chart_multi_path_lengths_box(data, metrics, save=False):
+    """Box plot of path lengths per algorithm across all runs."""
+    algo_names = sorted(metrics.keys(), key=lambda n: np.median(metrics[n]["path_lengths"]) if metrics[n]["path_lengths"] else 1e9)
+    plot_data = [metrics[n]["path_lengths"] for n in algo_names]
+    colors = [get_color(n) for n in algo_names]
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+    apply_style(fig, ax)
+
+    bp = ax.boxplot(plot_data, tick_labels=algo_names, patch_artist=True, widths=0.5,
+                    medianprops=dict(color=TEXT_COLOR, linewidth=2),
+                    whiskerprops=dict(color=TEXT_COLOR),
+                    capprops=dict(color=TEXT_COLOR),
+                    flierprops=dict(markerfacecolor=ACCENT_COLOR, markersize=4))
+    for patch, color in zip(bp["boxes"], colors):
+        patch.set_facecolor(color)
+        patch.set_alpha(0.7)
+        patch.set_edgecolor(BAR_EDGE_COLOR)
+
+    # Annotate median values
+    for i, d in enumerate(plot_data):
+        if d:
+            med = np.median(d)
+            ax.text(i + 1, med, f" {med:.0f}", va="center", ha="left", fontsize=8,
+                    color=TEXT_COLOR, fontweight="bold")
+
+    # Optimal line (average across runs)
+    all_opts = []
+    for n in algo_names:
+        all_opts.extend(metrics[n]["optimal_path_lengths"])
+    if all_opts:
+        avg_opt = np.mean(all_opts)
+        ax.axhline(y=avg_opt, color=ACCENT_COLOR, linestyle="--", linewidth=2,
+                   label=f"Avg optimal ({avg_opt:.0f})")
+        ax.legend(facecolor=BACKGROUND_COLOR, edgecolor=GRID_COLOR, labelcolor=TEXT_COLOR)
+
+    total_runs = data["batch_metadata"]["total_runs"]
+    ax.set_ylabel("Path Length (steps)", fontsize=12)
+    ax.set_title(f"Path Length Distribution Across {total_runs} Runs", fontsize=14, fontweight="bold", pad=15)
+    plt.xticks(rotation=15, ha="right")
+    plt.tight_layout()
+    _save_or_show(fig, "multi_path_lengths_box", save)
+
+
+def chart_multi_execution_times_box(data, metrics, save=False):
+    """Box plot of execution / training times per algorithm across all runs."""
+    algo_names = sorted(metrics.keys(), key=lambda n: np.median(metrics[n]["times"]) if metrics[n]["times"] else 1e9)
+    plot_data = [metrics[n]["times"] for n in algo_names]
+    colors = [get_color(n) for n in algo_names]
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+    apply_style(fig, ax)
+
+    bp = ax.boxplot(plot_data, tick_labels=algo_names, patch_artist=True, widths=0.5,
+                    medianprops=dict(color=TEXT_COLOR, linewidth=2),
+                    whiskerprops=dict(color=TEXT_COLOR),
+                    capprops=dict(color=TEXT_COLOR),
+                    flierprops=dict(markerfacecolor=ACCENT_COLOR, markersize=4))
+    for patch, color in zip(bp["boxes"], colors):
+        patch.set_facecolor(color)
+        patch.set_alpha(0.7)
+        patch.set_edgecolor(BAR_EDGE_COLOR)
+
+    for i, d in enumerate(plot_data):
+        if d:
+            med = np.median(d)
+            label = f" {med:.4f}s" if med < 1 else f" {med:.2f}s"
+            ax.text(i + 1, med, label, va="center", ha="left", fontsize=8,
+                    color=TEXT_COLOR, fontweight="bold")
+
+    total_runs = data["batch_metadata"]["total_runs"]
+    ax.set_ylabel("Time (seconds)", fontsize=12)
+    ax.set_title(f"Execution Time Distribution Across {total_runs} Runs", fontsize=14, fontweight="bold", pad=15)
+    plt.xticks(rotation=15, ha="right")
+    plt.tight_layout()
+    _save_or_show(fig, "multi_execution_times_box", save)
+
+
+def chart_multi_success_rates_box(data, metrics, save=False):
+    """Box plot of RL success rates across runs."""
+    rl_names = [n for n in sorted(metrics.keys()) if metrics[n]["type"] == "RL" and metrics[n]["success_rates"]]
+    if not rl_names:
+        return
+
+    plot_data = [metrics[n]["success_rates"] for n in rl_names]
+    colors = [get_color(n) for n in rl_names]
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    apply_style(fig, ax)
+
+    bp = ax.boxplot(plot_data, tick_labels=rl_names, patch_artist=True, widths=0.45,
+                    medianprops=dict(color=TEXT_COLOR, linewidth=2),
+                    whiskerprops=dict(color=TEXT_COLOR),
+                    capprops=dict(color=TEXT_COLOR),
+                    flierprops=dict(markerfacecolor=ACCENT_COLOR, markersize=4))
+    for patch, color in zip(bp["boxes"], colors):
+        patch.set_facecolor(color)
+        patch.set_alpha(0.7)
+        patch.set_edgecolor(BAR_EDGE_COLOR)
+
+    # Individual data points (jittered)
+    for i, (name, d) in enumerate(zip(rl_names, plot_data)):
+        jitter = np.random.normal(0, 0.04, len(d))
+        ax.scatter(np.full(len(d), i + 1) + jitter, d, color=get_color(name),
+                   alpha=0.4, s=15, zorder=4, edgecolors="none")
+        med = np.median(d)
+        ax.text(i + 1, med, f"  {med:.1f}%", va="center", ha="left", fontsize=9,
+                color=TEXT_COLOR, fontweight="bold")
+
+    total_runs = data["batch_metadata"]["total_runs"]
+    ax.set_ylabel("Success Rate (%)", fontsize=12)
+    ax.set_title(f"RL Success Rate Distribution Across {total_runs} Runs", fontsize=14, fontweight="bold", pad=15)
+    ax.set_ylim(0, max(max(max(d) for d in plot_data) * 1.15, 110))
+    plt.tight_layout()
+    _save_or_show(fig, "multi_success_rates_box", save)
+
+
+def chart_multi_win_rate(data, metrics, save=False):
+    """Bar chart showing how many runs each algorithm had the shortest path."""
+    runs = data.get("runs", [])
+    win_counts = {n: 0 for n in metrics}
+    tie_counts = {n: 0 for n in metrics}
+
+    for run in runs:
+        algos = run.get("algorithms", {})
+        best_len = float("inf")
+        best_names = []
+        for name, algo_data in algos.items():
+            cm = algo_data.get("common_metrics", {})
+            if cm.get("path_found", False):
+                pl = cm["path_length"]
+                if pl < best_len:
+                    best_len = pl
+                    best_names = [name]
+                elif pl == best_len:
+                    best_names.append(name)
+        if len(best_names) == 1:
+            win_counts[best_names[0]] += 1
+        elif len(best_names) > 1:
+            for n in best_names:
+                tie_counts[n] += 1
+
+    algo_names = sorted(metrics.keys())
+    wins = [win_counts.get(n, 0) for n in algo_names]
+    ties = [tie_counts.get(n, 0) for n in algo_names]
+    colors = [get_color(n) for n in algo_names]
+    total_runs = data["batch_metadata"]["total_runs"]
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    apply_style(fig, ax)
+
+    x = np.arange(len(algo_names))
+    width = 0.35
+    bars1 = ax.bar(x - width/2, wins, width, label="Wins (sole shortest)",
+                   color=colors, edgecolor=BAR_EDGE_COLOR, linewidth=0.5, zorder=3)
+    bars2 = ax.bar(x + width/2, ties, width, label="Ties (shared shortest)",
+                   color=colors, edgecolor=BAR_EDGE_COLOR, linewidth=0.5, zorder=3, alpha=0.45)
+
+    for bar, val in zip(bars1, wins):
+        if val > 0:
+            ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.2,
+                    str(val), ha="center", va="bottom", color=TEXT_COLOR, fontsize=10, fontweight="bold")
+    for bar, val in zip(bars2, ties):
+        if val > 0:
+            ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.2,
+                    str(val), ha="center", va="bottom", color=TEXT_COLOR, fontsize=10)
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(algo_names, rotation=15, ha="right")
+    ax.set_ylabel("Number of Runs", fontsize=12)
+    ax.set_title(f"Win Rate — Shortest Path Across {total_runs} Runs", fontsize=14, fontweight="bold", pad=15)
+    ax.legend(facecolor=BACKGROUND_COLOR, edgecolor=GRID_COLOR, labelcolor=TEXT_COLOR)
+    ax.set_ylim(0, max(max(wins + ties) * 1.25, 2))
+    plt.tight_layout()
+    _save_or_show(fig, "multi_win_rate", save)
+
+
+def chart_multi_aggregate_bars(data, metrics, save=False):
+    """Grouped bar chart of average path length and time with min/max error bars."""
+    agg = data.get("aggregate_statistics", {})
+    if not agg:
+        return
+
+    algo_names = sorted(agg.keys())
+    colors = [get_color(n) for n in algo_names]
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+    apply_style(fig, [ax1, ax2])
+
+    # ── Left: Average path length with min/max bars ──
+    avgs = [agg[n].get("avg_path_length", 0) for n in algo_names]
+    mins = [agg[n].get("min_path_length", 0) for n in algo_names]
+    maxs = [agg[n].get("max_path_length", 0) for n in algo_names]
+    err_low = [a - mn for a, mn in zip(avgs, mins)]
+    err_high = [mx - a for a, mx in zip(avgs, maxs)]
+
+    bars1 = ax1.bar(algo_names, avgs, color=colors, edgecolor=BAR_EDGE_COLOR, linewidth=0.5, zorder=3)
+    ax1.errorbar(algo_names, avgs, yerr=[err_low, err_high], fmt="none",
+                 ecolor=TEXT_COLOR, capsize=5, capthick=1.5, zorder=4)
+    for bar, val in zip(bars1, avgs):
+        ax1.text(bar.get_x() + bar.get_width()/2, bar.get_height() + max(avgs)*0.02,
+                 f"{val:.1f}", ha="center", va="bottom", color=TEXT_COLOR, fontsize=9, fontweight="bold")
+    ax1.set_ylabel("Path Length", fontsize=12)
+    ax1.set_title("Average Path Length (min/max bars)", fontsize=13, fontweight="bold")
+    plt.sca(ax1)
+    plt.xticks(rotation=15, ha="right")
+
+    # ── Right: Average execution time ──
+    avg_times = [agg[n].get("avg_time_seconds", 0) for n in algo_names]
+    bars2 = ax2.bar(algo_names, avg_times, color=colors, edgecolor=BAR_EDGE_COLOR, linewidth=0.5, zorder=3)
+    for bar, val in zip(bars2, avg_times):
+        label = f"{val:.4f}s" if val < 1 else f"{val:.2f}s"
+        ax2.text(bar.get_x() + bar.get_width()/2, bar.get_height() + max(avg_times)*0.02,
+                 label, ha="center", va="bottom", color=TEXT_COLOR, fontsize=9, fontweight="bold")
+    ax2.set_ylabel("Time (seconds)", fontsize=12)
+    ax2.set_title("Average Execution Time", fontsize=13, fontweight="bold")
+    plt.sca(ax2)
+    plt.xticks(rotation=15, ha="right")
+
+    total_runs = data["batch_metadata"]["total_runs"]
+    fig.suptitle(f"Aggregate Statistics — {total_runs} Runs", fontsize=15, fontweight="bold", color=TEXT_COLOR, y=1.02)
+    plt.tight_layout()
+    _save_or_show(fig, "multi_aggregate_bars", save)
+
+
+def chart_multi_learning_curves_avg(data, metrics, save=False):
+    """Averaged RL learning curves with ±std shaded bands across runs."""
+    rl_names = [n for n in sorted(metrics.keys()) if metrics[n]["type"] == "RL" and metrics[n]["learning_curves"]]
+    if not rl_names:
+        return
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+    apply_style(fig, ax)
+
+    for name in rl_names:
+        all_curves = metrics[name]["learning_curves"]  # list of lists of data_points
+        # Align curves by episode midpoints from the first curve
+        if not all_curves:
+            continue
+
+        # Use the first curve's episode structure as reference
+        ref = all_curves[0]
+        episodes = [(p["episode_range"][0] + p["episode_range"][1]) / 2 for p in ref]
+        n_points = len(episodes)
+
+        # Gather rates across runs (pad/truncate to same length)
+        all_rates = []
+        for curve in all_curves:
+            rates = [p["success_rate_percent"] for p in curve]
+            # Pad or truncate
+            if len(rates) >= n_points:
+                all_rates.append(rates[:n_points])
+            else:
+                padded = rates + [rates[-1]] * (n_points - len(rates))
+                all_rates.append(padded)
+
+        rates_arr = np.array(all_rates)
+        mean_rates = rates_arr.mean(axis=0)
+        std_rates = rates_arr.std(axis=0)
+
+        color = get_color(name)
+        ax.plot(episodes, mean_rates, color=color, linewidth=2, label=f"{name} (avg)", zorder=3)
+        ax.fill_between(episodes, mean_rates - std_rates, mean_rates + std_rates,
+                        alpha=0.2, color=color, zorder=2)
+
+    # Threshold line
+    ax.axhline(y=70, color=ACCENT_COLOR, linestyle=":", linewidth=1.5,
+               label="Convergence threshold (70%)", alpha=0.7)
+
+    total_runs = data["batch_metadata"]["total_runs"]
+    ax.set_xlabel("Episode", fontsize=12)
+    ax.set_ylabel("Success Rate (%)", fontsize=12)
+    ax.set_title(f"RL Learning Curves — Average ± Std Across {total_runs} Runs",
+                 fontsize=14, fontweight="bold", pad=15)
+    ax.set_ylim(-5, 105)
+    ax.legend(facecolor=BACKGROUND_COLOR, edgecolor=GRID_COLOR, labelcolor=TEXT_COLOR, fontsize=10)
+    plt.tight_layout()
+    _save_or_show(fig, "multi_learning_curves_avg", save)
+
+
+def chart_multi_consistency(data, metrics, save=False):
+    """Bar chart of coefficient of variation (std/mean) for path lengths — lower = more consistent."""
+    algo_names = sorted(n for n in metrics if len(metrics[n]["path_lengths"]) >= 2)
+    if not algo_names:
+        return
+
+    cvs = []
+    colors = []
+    for n in algo_names:
+        vals = metrics[n]["path_lengths"]
+        mean = np.mean(vals)
+        std = np.std(vals)
+        cv = (std / mean * 100) if mean > 0 else 0
+        cvs.append(cv)
+        colors.append(get_color(n))
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    apply_style(fig, ax)
+
+    bars = ax.bar(algo_names, cvs, color=colors, edgecolor=BAR_EDGE_COLOR, linewidth=0.5, zorder=3)
+    for bar, val in zip(bars, cvs):
+        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + max(cvs)*0.02 + 0.2,
+                f"{val:.1f}%", ha="center", va="bottom", color=TEXT_COLOR, fontsize=10, fontweight="bold")
+
+    total_runs = data["batch_metadata"]["total_runs"]
+    ax.set_ylabel("Coefficient of Variation (%)", fontsize=12)
+    ax.set_title(f"Path Length Consistency Across {total_runs} Runs (lower = more consistent)",
+                 fontsize=14, fontweight="bold", pad=15)
+    plt.xticks(rotation=15, ha="right")
+    plt.tight_layout()
+    _save_or_show(fig, "multi_consistency", save)
+
+
+def chart_multi_dashboard(data, metrics, save=False):
+    """Multi-run overview dashboard with batch metadata and aggregate stats."""
+    batch = data["batch_metadata"]
+    agg = data.get("aggregate_statistics", {})
+    total_runs = batch["total_runs"]
+
+    fig = plt.figure(figsize=(16, 10))
+    fig.patch.set_facecolor(BACKGROUND_COLOR)
+    gs = gridspec.GridSpec(3, 3, hspace=0.4, wspace=0.35)
+
+    fig.suptitle(
+        f"Multi-Run Dashboard — {total_runs} Runs | {batch.get('batch_date', '?')}",
+        fontsize=16, fontweight="bold", color=TEXT_COLOR, y=0.98
+    )
+
+    # ── Panel 1: Path length box plot (top-left, 2 cols) ──
+    ax1 = fig.add_subplot(gs[0, 0:2])
+    apply_style(fig, ax1)
+    algo_names = sorted(metrics.keys(), key=lambda n: np.median(metrics[n]["path_lengths"]) if metrics[n]["path_lengths"] else 1e9)
+    plot_data = [metrics[n]["path_lengths"] for n in algo_names]
+    colors = [get_color(n) for n in algo_names]
+    if plot_data and any(plot_data):
+        bp = ax1.boxplot(plot_data, tick_labels=algo_names, patch_artist=True, widths=0.5,
+                         medianprops=dict(color=TEXT_COLOR, linewidth=2),
+                         whiskerprops=dict(color=TEXT_COLOR),
+                         capprops=dict(color=TEXT_COLOR))
+        for patch, color in zip(bp["boxes"], colors):
+            patch.set_facecolor(color)
+            patch.set_alpha(0.7)
+            patch.set_edgecolor(BAR_EDGE_COLOR)
+    ax1.set_title("Path Length Distribution", fontsize=11, fontweight="bold")
+    ax1.tick_params(axis="x", labelsize=8, rotation=15)
+
+    # ── Panel 2: Info text (top-right) ──
+    ax2 = fig.add_subplot(gs[0, 2])
+    ax2.set_facecolor(PANEL_COLOR)
+    ax2.axis("off")
+    config = data.get("shared_config", {})
+    training = config.get("training", {})
+    rl_hp = config.get("rl_hyperparameters", {})
+    info_lines = [
+        f"Total runs: {total_runs}",
+        f"Batch time: {batch.get('total_batch_time_seconds', 0):.1f}s",
+        f"Avg per run: {batch.get('average_run_time_seconds', 0):.1f}s",
+        f"Config: {batch.get('maze_config_file', '?')}",
+        "",
+        f"Episodes: {training.get('episodes', '?')}",
+        f"Max steps: {training.get('max_steps_per_episode', '?')}",
+        f"Gamma: {rl_hp.get('gamma', '?')}",
+        f"Epsilon: {rl_hp.get('epsilon_start', '?')} → {rl_hp.get('epsilon_min', '?')}",
+        f"Alpha: {rl_hp.get('alpha_start', '?')} → {rl_hp.get('alpha_min', '?')}",
+    ]
+    text = "\n".join(info_lines)
+    ax2.text(0.05, 0.95, text, transform=ax2.transAxes, fontsize=9, color=TEXT_COLOR,
+             verticalalignment="top", fontfamily="monospace",
+             bbox=dict(boxstyle="round,pad=0.5", facecolor=PANEL_COLOR, edgecolor=GRID_COLOR))
+
+    # ── Panel 3: Averaged learning curves (middle, 2 cols) ──
+    ax3 = fig.add_subplot(gs[1, 0:2])
+    apply_style(fig, ax3)
+    has_curve = False
+    rl_names = [n for n in sorted(metrics.keys()) if metrics[n]["type"] == "RL"]
+    for name in rl_names:
+        all_curves = metrics[name]["learning_curves"]
+        if not all_curves:
+            continue
+        has_curve = True
+        ref = all_curves[0]
+        episodes = [(p["episode_range"][0] + p["episode_range"][1]) / 2 for p in ref]
+        n_points = len(episodes)
+        all_rates = []
+        for curve in all_curves:
+            rates = [p["success_rate_percent"] for p in curve]
+            if len(rates) >= n_points:
+                all_rates.append(rates[:n_points])
+            else:
+                padded = rates + [rates[-1]] * (n_points - len(rates))
+                all_rates.append(padded)
+        rates_arr = np.array(all_rates)
+        mean_rates = rates_arr.mean(axis=0)
+        std_rates = rates_arr.std(axis=0)
+        color = get_color(name)
+        ax3.plot(episodes, mean_rates, color=color, linewidth=2, label=name, zorder=3)
+        ax3.fill_between(episodes, mean_rates - std_rates, mean_rates + std_rates,
+                         alpha=0.15, color=color, zorder=2)
+    if has_curve:
+        ax3.axhline(y=70, color=ACCENT_COLOR, linestyle=":", linewidth=1, alpha=0.5)
+        ax3.set_title("RL Learning Curves (avg ± std)", fontsize=11, fontweight="bold")
+        ax3.set_xlabel("Episode", fontsize=9)
+        ax3.set_ylabel("Success %", fontsize=9)
+        ax3.set_ylim(-5, 105)
+        ax3.legend(facecolor=BACKGROUND_COLOR, edgecolor=GRID_COLOR, labelcolor=TEXT_COLOR, fontsize=8)
+    else:
+        ax3.text(0.5, 0.5, "No RL learning curve data", ha="center", va="center",
+                 color=TEXT_COLOR, fontsize=11, transform=ax3.transAxes)
+
+    # ── Panel 4: Aggregate times bar (middle-right) ──
+    ax4 = fig.add_subplot(gs[1, 2])
+    apply_style(fig, ax4)
+    if agg:
+        an = sorted(agg.keys())
+        avg_t = [agg[n].get("avg_time_seconds", 0) for n in an]
+        ac = [get_color(n) for n in an]
+        ax4.barh(an, avg_t, color=ac, edgecolor=BAR_EDGE_COLOR, linewidth=0.5, zorder=3)
+        ax4.set_title("Avg Time (s)", fontsize=11, fontweight="bold")
+        ax4.tick_params(axis="y", labelsize=8)
+
+    # ── Panel 5: Win rates (bottom-left) ──
+    ax5 = fig.add_subplot(gs[2, 0])
+    apply_style(fig, ax5)
+    runs = data.get("runs", [])
+    win_counts = {n: 0 for n in metrics}
+    for run in runs:
+        algos_run = run.get("algorithms", {})
+        best_len = float("inf")
+        best_names = []
+        for nm, ad in algos_run.items():
+            cm = ad.get("common_metrics", {})
+            if cm.get("path_found", False):
+                pl = cm["path_length"]
+                if pl < best_len:
+                    best_len = pl
+                    best_names = [nm]
+                elif pl == best_len:
+                    best_names.append(nm)
+        for nm in best_names:
+            win_counts[nm] = win_counts.get(nm, 0) + 1
+    wn = sorted(win_counts.keys())
+    wv = [win_counts[n] for n in wn]
+    wc = [get_color(n) for n in wn]
+    ax5.bar(wn, wv, color=wc, edgecolor=BAR_EDGE_COLOR, linewidth=0.5, zorder=3)
+    ax5.set_title("Win Rate (shortest path)", fontsize=11, fontweight="bold")
+    ax5.tick_params(axis="x", labelsize=7, rotation=25)
+
+    # ── Panel 6: Consistency (CV%) (bottom-middle) ──
+    ax6 = fig.add_subplot(gs[2, 1])
+    apply_style(fig, ax6)
+    cv_names = [n for n in sorted(metrics.keys()) if len(metrics[n]["path_lengths"]) >= 2]
+    if cv_names:
+        cvs = []
+        cvc = []
+        for n in cv_names:
+            vals = metrics[n]["path_lengths"]
+            mean = np.mean(vals)
+            std = np.std(vals)
+            cvs.append((std / mean * 100) if mean > 0 else 0)
+            cvc.append(get_color(n))
+        ax6.bar(cv_names, cvs, color=cvc, edgecolor=BAR_EDGE_COLOR, linewidth=0.5, zorder=3)
+        ax6.set_title("Consistency (CV%)", fontsize=11, fontweight="bold")
+        ax6.tick_params(axis="x", labelsize=7, rotation=25)
+    else:
+        ax6.text(0.5, 0.5, "Not enough data", ha="center", va="center", color=TEXT_COLOR, transform=ax6.transAxes)
+
+    # ── Panel 7: RL success rate box (bottom-right) ──
+    ax7 = fig.add_subplot(gs[2, 2])
+    apply_style(fig, ax7)
+    rl_with_sr = [n for n in rl_names if metrics[n]["success_rates"]]
+    if rl_with_sr:
+        sr_data = [metrics[n]["success_rates"] for n in rl_with_sr]
+        sr_colors = [get_color(n) for n in rl_with_sr]
+        bp7 = ax7.boxplot(sr_data, tick_labels=rl_with_sr, patch_artist=True, widths=0.4,
+                          medianprops=dict(color=TEXT_COLOR, linewidth=2),
+                          whiskerprops=dict(color=TEXT_COLOR),
+                          capprops=dict(color=TEXT_COLOR))
+        for patch, color in zip(bp7["boxes"], sr_colors):
+            patch.set_facecolor(color)
+            patch.set_alpha(0.7)
+            patch.set_edgecolor(BAR_EDGE_COLOR)
+        ax7.set_title("RL Success Rate %", fontsize=11, fontweight="bold")
+        ax7.set_ylim(0, 110)
+        ax7.tick_params(axis="x", labelsize=8)
+    else:
+        ax7.text(0.5, 0.5, "No RL data", ha="center", va="center", color=TEXT_COLOR, transform=ax7.transAxes)
+
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    _save_or_show(fig, "multi_dashboard", save)
+
+
+def chart_multi_efficiency_box(data, metrics, save=False):
+    """Box plot of path efficiency across runs per algorithm."""
+    algo_names = sorted(n for n in metrics if metrics[n]["efficiencies"])
+    if not algo_names:
+        return
+
+    plot_data = [[e * 100 for e in metrics[n]["efficiencies"]] for n in algo_names]
+    colors = [get_color(n) for n in algo_names]
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+    apply_style(fig, ax)
+
+    bp = ax.boxplot(plot_data, tick_labels=algo_names, patch_artist=True, widths=0.5,
+                    medianprops=dict(color=TEXT_COLOR, linewidth=2),
+                    whiskerprops=dict(color=TEXT_COLOR),
+                    capprops=dict(color=TEXT_COLOR),
+                    flierprops=dict(markerfacecolor=ACCENT_COLOR, markersize=4))
+    for patch, color in zip(bp["boxes"], colors):
+        patch.set_facecolor(color)
+        patch.set_alpha(0.7)
+        patch.set_edgecolor(BAR_EDGE_COLOR)
+
+    ax.axhline(y=100, color=ACCENT_COLOR, linestyle="--", linewidth=2, label="Optimal (100%)")
+    ax.legend(facecolor=BACKGROUND_COLOR, edgecolor=GRID_COLOR, labelcolor=TEXT_COLOR)
+
+    for i, d in enumerate(plot_data):
+        if d:
+            med = np.median(d)
+            ax.text(i + 1, med, f" {med:.0f}%", va="center", ha="left", fontsize=8,
+                    color=TEXT_COLOR, fontweight="bold")
+
+    total_runs = data["batch_metadata"]["total_runs"]
+    ax.set_ylabel("Path Efficiency (%)", fontsize=12)
+    ax.set_title(f"Path Efficiency Distribution Across {total_runs} Runs",
+                 fontsize=14, fontweight="bold", pad=15)
+    plt.xticks(rotation=15, ha="right")
+    plt.tight_layout()
+    _save_or_show(fig, "multi_efficiency_box", save)
+
+
+# ─────────────────────────────────────────────
 # Utilities
 # ─────────────────────────────────────────────
 
@@ -775,6 +1367,64 @@ def print_text_summary(data, algos):
     print("\n" + "=" * 60 + "\n")
 
 
+def print_multi_run_summary(data, metrics):
+    """Print a formatted text summary for multi-run batch results."""
+    batch = data["batch_metadata"]
+    agg = data.get("aggregate_statistics", {})
+
+    print("\n" + "=" * 65)
+    print(f"  MULTI-RUN BATCH RESULTS — {batch['total_runs']} runs")
+    print(f"  Date: {batch.get('batch_date', '?')} | "
+          f"Total time: {batch.get('total_batch_time_seconds', 0):.1f}s | "
+          f"Config: {batch.get('maze_config_file', '?')}")
+    print("=" * 65)
+
+    # Per-algorithm aggregate stats
+    if agg:
+        # Sort by avg path length
+        sorted_algos = sorted(agg.items(), key=lambda x: x[1].get("avg_path_length", 1e9))
+        print("\n  📊 Aggregate Statistics (sorted by avg path length):")
+        print(f"  {'Algorithm':<16} {'Avg Path':>9} {'Min':>6} {'Max':>6} {'Avg Time':>10} {'Avg Eff':>8} {'Avg SR%':>8}")
+        print("  " + "-" * 63)
+        for name, stats in sorted_algos:
+            avg_pl = stats.get('avg_path_length', 0)
+            min_pl = stats.get('min_path_length', 0)
+            max_pl = stats.get('max_path_length', 0)
+            avg_t = stats.get('avg_time_seconds', 0)
+            avg_eff = stats.get('avg_path_efficiency', 0)
+            avg_sr = stats.get('avg_success_rate_percent')
+            sr_str = f"{avg_sr:.1f}%" if avg_sr is not None else "  N/A"
+            time_str = f"{avg_t:.4f}s" if avg_t < 1 else f"{avg_t:.2f}s"
+            print(f"  {name:<16} {avg_pl:>9.1f} {min_pl:>6} {max_pl:>6} {time_str:>10} {avg_eff:>7.2f}% {sr_str:>8}")
+
+    # Win count
+    runs = data.get("runs", [])
+    win_counts = {}
+    for run in runs:
+        algos_run = run.get("algorithms", {})
+        best_len = float("inf")
+        best_names = []
+        for nm, ad in algos_run.items():
+            cm = ad.get("common_metrics", {})
+            if cm.get("path_found", False):
+                pl = cm["path_length"]
+                if pl < best_len:
+                    best_len = pl
+                    best_names = [nm]
+                elif pl == best_len:
+                    best_names.append(nm)
+        for nm in best_names:
+            win_counts[nm] = win_counts.get(nm, 0) + 1
+
+    if win_counts:
+        print("\n  🏆 Win Count (shortest path per run):")
+        for name, count in sorted(win_counts.items(), key=lambda x: -x[1]):
+            pct = count / len(runs) * 100
+            print(f"    {name}: {count}/{len(runs)} ({pct:.0f}%)")
+
+    print("\n" + "=" * 65 + "\n")
+
+
 # ─────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────
@@ -793,6 +1443,16 @@ def main():
     
     # Load data
     data, filepath = load_comparison_json(json_arg)
+
+    # ── Detect multi-run vs single-run format ──
+    if is_multi_run(data):
+        _main_multi_run(data, filepath, save_mode)
+    else:
+        _main_single_run(data, filepath, save_mode)
+
+
+def _main_single_run(data, filepath, save_mode):
+    """Original flow for a single-run comparison JSON."""
     algos = get_completed_algorithms(data)
     
     if not algos:
@@ -841,6 +1501,58 @@ def main():
     chart_radar(data, algos, save_mode)
     print("  ✓ Radar chart")
     
+    print("\nDone!")
+
+
+def _main_multi_run(data, filepath, save_mode):
+    """Flow for a multi-run batch JSON."""
+    batch = data["batch_metadata"]
+    total_runs = batch["total_runs"]
+    metrics = extract_multi_run_metrics(data)
+
+    if not metrics:
+        print("No algorithm data found in any run.")
+        sys.exit(1)
+
+    print(f"Multi-run batch detected: {total_runs} runs")
+    print(f"Algorithms: {', '.join(sorted(metrics.keys()))}")
+
+    # Print text summary
+    print_multi_run_summary(data, metrics)
+
+    if save_mode:
+        print(f"Saving charts to: {OUTPUT_FOLDER}\n")
+
+    # Generate multi-run charts
+    print("Generating multi-run charts...")
+
+    chart_multi_dashboard(data, metrics, save_mode)
+    print("  ✓ Multi-run dashboard")
+
+    chart_multi_path_lengths_box(data, metrics, save_mode)
+    print("  ✓ Path length box plots")
+
+    chart_multi_execution_times_box(data, metrics, save_mode)
+    print("  ✓ Execution time box plots")
+
+    chart_multi_success_rates_box(data, metrics, save_mode)
+    print("  ✓ RL success rate box plots")
+
+    chart_multi_learning_curves_avg(data, metrics, save_mode)
+    print("  ✓ Averaged learning curves")
+
+    chart_multi_efficiency_box(data, metrics, save_mode)
+    print("  ✓ Path efficiency box plots")
+
+    chart_multi_aggregate_bars(data, metrics, save_mode)
+    print("  ✓ Aggregate statistics bars")
+
+    chart_multi_win_rate(data, metrics, save_mode)
+    print("  ✓ Win rate chart")
+
+    chart_multi_consistency(data, metrics, save_mode)
+    print("  ✓ Consistency chart")
+
     print("\nDone!")
 
 

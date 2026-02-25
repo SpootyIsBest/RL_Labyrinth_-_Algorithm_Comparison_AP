@@ -147,6 +147,13 @@ comparison_show_results = False  # R key - show results overlay
 comparison_show_optimal_path = False  # P key - show optimal path with arrows
 comparison_json_saved = False  # Guard to prevent saving JSON twice
 
+# Multi-run state (for batching N comparisons on random mazes into one JSON)
+multi_run_total = 1          # Total number of runs requested
+multi_run_current = 0        # Current run index (0-based)
+multi_run_all_results = []   # List of per-run comparison data dicts
+multi_run_active = False     # True while a multi-run batch is in progress
+multi_run_start_time = 0     # Timestamp when the entire batch started
+
 # Flags for RL Visualisation display options
 show_path = False 
 show_config = False 
@@ -345,7 +352,7 @@ def start_nonrl_visualization(monitor):
 def start_automated_comparison():
     global comparison_running, comparison_algorithms, comparison_current_index, comparison_results
     global comparison_visualizers, comparison_trainers, comparison_agents, comparison_q_tables
-    global activeMonitor, comparison_start_time
+    global activeMonitor, comparison_start_time, comparison_json_saved
     
     if maze is None:
         print("Error: No maze loaded for comparison")
@@ -506,8 +513,8 @@ def _compute_learning_curve(find_episodes, total_episodes, window_size=100):
             break
     return data_points, convergence_episode
 
-# Save all comparison results by copying the default template and filling it with data
-def save_comparison_json():
+# Build a single run's comparison data dict from comparison_results (does NOT save to file)
+def _build_single_run_data():
     from datetime import datetime
     import copy
 
@@ -779,13 +786,23 @@ def save_comparison_json():
         )
     }
 
+    return comparison_data
+
+# Save a single comparison run to JSON file (wrapper around _build_single_run_data)
+def save_comparison_json():
+    from datetime import datetime
+
+    comparison_data = _build_single_run_data()
+
     # ── Save to file ──
     filename = f"NonRL_Results/Comparison_{maze.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
     try:
         with open(filename, "w") as f:
             json.dump(comparison_data, f, indent=4)
         print(f"\nSaved comparison results to {filename}")
-        print(f"  - {len(rl_results)} RL algorithms, {len(nonrl_results)} Non-RL algorithms")
+        rl_count = len([r for r in comparison_results if r["type"] == "RL"])
+        nonrl_count = len([r for r in comparison_results if r["type"] == "NonRL"])
+        print(f"  - {rl_count} RL algorithms, {nonrl_count} Non-RL algorithms")
         print(f"  - Best RL: {comparison_data['summary']['best_rl_by_success_rate']['name']} "
               f"({comparison_data['summary']['best_rl_by_success_rate']['success_rate_percent']:.1f}%)")
         print(f"  - Fastest overall: {comparison_data['summary']['fastest_overall']['name']}")
@@ -800,6 +817,112 @@ def save_comparison_json():
         print(f"  - Copied to {viz_filename} (for visualize_comparison.py)")
     except Exception as e:
         print(f"Error saving comparison JSON: {e}")
+
+# Save all multi-run batch results into a single JSON file
+def save_multi_run_json():
+    from datetime import datetime
+
+    total_batch_time = time.time() - multi_run_start_time
+
+    # Build the batch JSON structure
+    batch_data = {
+        "batch_metadata": {
+            "total_runs": multi_run_total,
+            "batch_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "total_batch_time_seconds": round(total_batch_time, 2),
+            "average_run_time_seconds": round(total_batch_time / multi_run_total, 2) if multi_run_total > 0 else 0,
+            "maze_config_file": new_json_file_name + ".json" if new_json_file_name else "unknown"
+        },
+        "shared_config": {
+            "training": {
+                "episodes": EPISODES,
+                "max_steps_per_episode": max_steps,
+                "reward_for_finish": rewardForFinish,
+                "reward_for_valid_move": rewardForValidMove
+            },
+            "rl_hyperparameters": {
+                "gamma": gamma,
+                "epsilon_start": EPS0,
+                "epsilon_min": EPS_MIN,
+                "epsilon_decay": EPS_DECAY,
+                "alpha_start": ALPHA0,
+                "alpha_min": ALPHA_MIN,
+                "alpha_decay": ALPHA_DECAY
+            }
+        },
+        "runs": []
+    }
+
+    # Add each run's data with a run index
+    for i, run_data in enumerate(multi_run_all_results):
+        run_entry = {
+            "run_index": i + 1,
+            **run_data
+        }
+        batch_data["runs"].append(run_entry)
+
+    # Compute aggregate statistics across all runs
+    all_algo_names = set()
+    for run_data in multi_run_all_results:
+        all_algo_names.update(run_data.get("algorithms", {}).keys())
+
+    aggregate_stats = {}
+    for algo_name in sorted(all_algo_names):
+        path_lengths = []
+        times = []
+        efficiencies = []
+        success_rates = []
+        for run_data in multi_run_all_results:
+            algo_data = run_data.get("algorithms", {}).get(algo_name)
+            if algo_data and algo_data.get("status") == "completed":
+                cm = algo_data["common_metrics"]
+                if cm["path_found"]:
+                    path_lengths.append(cm["path_length"])
+                    efficiencies.append(cm["path_efficiency"])
+                times.append(cm["time_to_solution_seconds"])
+                if algo_data["type"] == "RL":
+                    sr = algo_data.get("performance_metrics", {}).get("success_rate_percent", 0)
+                    success_rates.append(sr)
+
+        aggregate_stats[algo_name] = {
+            "runs_completed": len(times),
+            "runs_with_path_found": len(path_lengths),
+            "avg_path_length": round(sum(path_lengths) / len(path_lengths), 2) if path_lengths else 0,
+            "min_path_length": min(path_lengths) if path_lengths else 0,
+            "max_path_length": max(path_lengths) if path_lengths else 0,
+            "avg_time_seconds": round(sum(times) / len(times), 4) if times else 0,
+            "avg_path_efficiency": round(sum(efficiencies) / len(efficiencies), 4) if efficiencies else 0,
+            "avg_success_rate_percent": round(sum(success_rates) / len(success_rates), 2) if success_rates else None
+        }
+
+    batch_data["aggregate_statistics"] = aggregate_stats
+
+    # ── Save to file ──
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    maze_name = multi_run_all_results[0]["metadata"]["maze_name"] if multi_run_all_results else "Unknown"
+    filename = f"NonRL_Results/MultiRun_{maze_name}_{multi_run_total}runs_{timestamp}.json"
+    try:
+        with open(filename, "w") as f:
+            json.dump(batch_data, f, indent=4)
+        print(f"\n{'='*60}")
+        print(f"MULTI-RUN BATCH COMPLETE")
+        print(f"{'='*60}")
+        print(f"  Saved {multi_run_total} runs to {filename}")
+        print(f"  Total batch time: {total_batch_time:.1f}s ({total_batch_time/60:.1f} min)")
+        print(f"  Average per run: {total_batch_time/multi_run_total:.1f}s")
+        for algo_name, stats in aggregate_stats.items():
+            avg_pl = stats['avg_path_length']
+            avg_t = stats['avg_time_seconds']
+            print(f"  {algo_name}: avg path={avg_pl}, avg time={avg_t:.4f}s")
+
+        # Also copy to ComparisonVisualization/ folder
+        viz_folder = "ComparisonVisualization"
+        os.makedirs(viz_folder, exist_ok=True)
+        viz_filename = os.path.join(viz_folder, os.path.basename(filename))
+        shutil.copy(filename, viz_filename)
+        print(f"  Copied to {viz_filename}")
+    except Exception as e:
+        print(f"Error saving multi-run JSON: {e}")
 
 # ── Input Box Initialization ─────────────────────────────────────────────────
 
@@ -1014,6 +1137,7 @@ def save_comparison_and_continue_to_rl_settings(monitor):
 def apply_rl_settings_and_load_maze(monitor):
     global EPISODES, EPS0, EPS_MIN, EPS_DECAY, ALPHA0, ALPHA_MIN, ALPHA_DECAY, gamma
     global agent, maze, Q, HeatTable
+    global multi_run_total, multi_run_current, multi_run_all_results, multi_run_active, multi_run_start_time
     
     # Update RL parameters from input boxes (skip EPISODES - index 0, use NumOfEpisodes from JSON instead)
     try:
@@ -1029,6 +1153,22 @@ def apply_rl_settings_and_load_maze(monitor):
         print(f"Error parsing RL settings: {e}")
         return
     
+    # Read number of runs from multi-run input
+    try:
+        multi_run_total = max(1, int(multi_run_input.text))
+    except (ValueError, TypeError):
+        multi_run_total = 1
+    
+    multi_run_current = 0
+    multi_run_all_results = []
+    multi_run_active = (multi_run_total > 1)
+    multi_run_start_time = time.time()
+    
+    if multi_run_active:
+        print(f"\n{'='*60}")
+        print(f"MULTI-RUN BATCH: {multi_run_total} runs requested")
+        print(f"{'='*60}")
+    
     # Create maze from saved JSON (this will set EPISODES from NumOfEpisodes in JSON)
     create_maze_from_json(new_json_file_name)
     print(f"RL settings applied: EPISODES={EPISODES}, EPS0={EPS0}, gamma={gamma}")
@@ -1038,6 +1178,9 @@ def apply_rl_settings_and_load_maze(monitor):
     Q = np.zeros((maze.maze_size_height, maze.maze_size_width, 4), dtype=float)
     # Initialize HeatTable
     HeatTable = [[0 for _ in range(maze.maze_size_width)] for _ in range(maze.maze_size_height)]
+    
+    if multi_run_active:
+        print(f"\n--- Run {multi_run_current + 1}/{multi_run_total} ---")
     print(f"Created maze for comparison from {new_json_file_name}.json")
     
     # Start automated comparison
@@ -1806,6 +1949,7 @@ def initialize_all_buttons():
     global algorithm_type_rl_button, algorithm_type_nonrl_button
     global nonrl_algorithm_dropdown, nonrl_continue_button, nonrl_speed_input, nonrl_start_button
     global nonrl_back_button
+    global multi_run_input
     
     # BUTTONS for Mode Selection Menu (NEW FIRST SCREEN)
     mode_one_button = Button(screen,
@@ -2023,6 +2167,19 @@ def initialize_all_buttons():
         20
     )
     
+    # Input box for number of runs in multi-run comparison mode
+    multi_run_input = InputBox(
+        SCREEN_WIDTH // 2 + int(SCREEN_WIDTH * 0.12),
+        int(SCREEN_HEIGHT * 0.83),
+        int(SCREEN_WIDTH * 0.08),
+        int(SCREEN_HEIGHT * 0.04),
+        INACTIVE_COLOR,
+        ACTIVE_COLOR,
+        TEXT_SAVED_COLOR,
+        INPUT_BOX_FONT,
+        "1"
+    )
+
     # Continue button for RL Settings screen
     rl_settings_continue_button = Button(
         screen,
@@ -2309,6 +2466,14 @@ def draw_Comparison_RL_Settings():
     
     # Draw continue button
     rl_settings_continue_button.draw()
+    
+    # Draw multi-run input box
+    run_label = INPUT_BOX_FONT.render("Number of Runs:", True, pygame.Color("white"))
+    screen.blit(run_label, (SCREEN_WIDTH // 2 - int(SCREEN_WIDTH * 0.05), int(SCREEN_HEIGHT * 0.84)))
+    multi_run_input.update()
+    multi_run_input.draw(screen)
+    run_hint = HYPERPARAMETERS_FONT.render("(each run generates a new random maze)", True, pygame.Color("gray"))
+    screen.blit(run_hint, (SCREEN_WIDTH // 2 - int(SCREEN_WIDTH * 0.05), int(SCREEN_HEIGHT * 0.89)))
 
 # Draw the RL algorithm settings screen for single training
 def draw_RL_Settings():
@@ -2819,6 +2984,12 @@ def draw_comparison_results_overlay():
 def draw_comparison_status():
     status_y = SCREEN_HEIGHT - 25
     
+    # Multi-run progress indicator
+    if multi_run_active:
+        run_surf = HYPERPARAMETERS_FONT.render(
+            f"Run {multi_run_current + 1}/{multi_run_total}", True, pygame.Color("orange"))
+        screen.blit(run_surf, (10, status_y - 18))
+    
     # Visualization status
     if comparison_visualization_paused:
         viz_surf = HYPERPARAMETERS_FONT.render("VIZ: PAUSED", True, pygame.Color("yellow"))
@@ -2917,6 +3088,8 @@ while running:
                 if i == 0:  # Skip EPISODES
                     continue
                 input_box.handle_event(event)
+            # Handle multi-run count input
+            multi_run_input.handle_event(event)
         
         if activeMonitor == "Load_Menu":
             maze_dropdown.handle_event(event)
@@ -2952,13 +3125,16 @@ while running:
                 if len(comparison_results) > 0:
                     comparison_show_results = not comparison_show_results
             if event.key == pygame.K_q and comparison_show_results:  # Quit to main menu from results
-                # Save if not already saved
-                if not comparison_json_saved:
+                # Save if not already saved (single-run case)
+                if not multi_run_active and not comparison_json_saved:
                     save_comparison_json()
                     comparison_json_saved = True
                 activeMonitor = "Main_Menu"
                 comparison_running = False
                 comparison_show_results = False
+                multi_run_active = False
+                multi_run_current = 0
+                multi_run_all_results = []
                 print("Exited comparison mode")
             if event.key == pygame.K_c:  # Toggle settings overlay
                 if not comparison_show_results:
@@ -3254,13 +3430,41 @@ while running:
             ) if comparison_visualizers else True
             
             if all_nonrl_finished and not comparison_show_results:
-                print("All algorithms completed - Press R to view results")
-                comparison_show_results = True
-                comparison_training_paused = True
-                # Auto-save comparison results JSON
+                # Build this run's data and collect it
                 if not comparison_json_saved:
-                    save_comparison_json()
+                    run_data = _build_single_run_data()
+                    multi_run_all_results.append(run_data)
                     comparison_json_saved = True
+                    
+                    if multi_run_active and multi_run_current < multi_run_total - 1:
+                        # More runs remain – start the next one
+                        multi_run_current += 1
+                        print(f"\n--- Run {multi_run_current + 1}/{multi_run_total} ---")
+                        
+                        # Regenerate a fresh random maze from the same config
+                        create_maze_from_json(new_json_file_name)
+                        
+                        # Re-create agent, Q-table, HeatTable for the new maze
+                        agent = Agent(-5, maze.gridStates, maze.start_pos)
+                        Q = np.zeros((maze.maze_size_height, maze.maze_size_width, 4), dtype=float)
+                        HeatTable = [[0 for _ in range(maze.maze_size_width)] for _ in range(maze.maze_size_height)]
+                        
+                        # Reset comparison state flags so the next run works
+                        comparison_show_results = False
+                        comparison_json_saved = False
+                        comparison_training_paused = False
+                        
+                        # Start a fresh comparison on the new maze
+                        start_automated_comparison()
+                    else:
+                        # Last run (or single run) – save and show results
+                        print("All algorithms completed - Press R to view results")
+                        comparison_show_results = True
+                        comparison_training_paused = True
+                        if multi_run_active:
+                            save_multi_run_json()
+                        else:
+                            save_comparison_json()
 
     # advance training coroutine a bit each frame
     if training_active and trainer is not None:

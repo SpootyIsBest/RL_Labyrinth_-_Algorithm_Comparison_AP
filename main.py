@@ -5,6 +5,7 @@ import csv
 import json
 import shutil
 import os
+import time
 from InputBox import InputBox
 from Maze import Maze
 from Monitors import Monitors
@@ -16,19 +17,15 @@ from Algorithm_Dropdown import Algorithm_Dropdown
 from NonRL_Algorithms import get_algorithm
 from NonRL_Visualizer import NonRL_Visualizer
 
-#-----------------------------
-# Pygame Setup
-#-----------------------------
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                              PYGAME SETUP                                    ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
-# Initialize Pygame
 pygame.init()
 
 # Default window size (can be modified here)
-DEFAULT_WINDOW_WIDTH = 1280   # Change this to your preferred width
-DEFAULT_WINDOW_HEIGHT = 720    # Change this to your preferred height
-
-SCREEN_WIDTH = DEFAULT_WINDOW_WIDTH
-SCREEN_HEIGHT = DEFAULT_WINDOW_HEIGHT
+SCREEN_WIDTH = 1280   # Change this to your preferred width
+SCREEN_HEIGHT = 720    # Change this to your preferred height
 
 # Create resizable window
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
@@ -36,12 +33,12 @@ screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE
 # Create a clock object to manage the frame rate 
 clock = pygame.time.Clock()
 
-# ----------------------------- 
-# Fonts and Colors and Images
-# -----------------------------
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                         FONTS, COLORS & IMAGES                               ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
 # Fonts
-TITTLE_FONT = pygame.font.Font(None,72)
+TITLE_FONT = pygame.font.Font(None,72)
 HYPERPARAMETERS_FONT = pygame.font.Font(None, 24)
 BUTTON_FONT = pygame.font.Font(None, 30)
 BUTTON_FONT_INFLATED = pygame.font.Font(None, 32)
@@ -58,9 +55,9 @@ TEXT_SAVED_COLOR = pygame.Color(178, 255, 169)
 agent_img = pygame.image.load("Agent.png").convert_alpha()
 agent_img = pygame.transform.smoothscale(agent_img, (32, 32))
 
-# -----------------------------
-# Config - Default Settings
-# -----------------------------
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                          CONFIG — DEFAULT SETTINGS                           ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
 FPS = 200 # FPS for Pygame display
 
@@ -82,17 +79,20 @@ final_path = []  # Track the agent's path in the last successful episode
 # epsilon/alpha decay (monotonic with floors)
 EPS0, EPS_MIN, EPS_DECAY = 0.9, 0.05, 0.9995 # initial epsilon, min epsilon, decay rate
 ALPHA0, ALPHA_MIN, ALPHA_DECAY = 0.72, 0.10, 0.997 # initial alpha, min alpha, decay rate
-# -----------------------------
-# Maze Initialization
-# -----------------------------
+
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                           MAZE INITIALIZATION                                ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+
 maze = None
 maze_layout = None
 agent = None
 Q = None # Q-Table
 HeatTable = None
-# -----------------------------
-# Main Program Variables
-# -----------------------------
+
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                         MAIN PROGRAM VARIABLES                               ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
 # constants to reuse
 BASE_RECT_SIZE = 100 # base size of maze cells
@@ -109,9 +109,9 @@ activeMonitor = "Mode_Selection"
 if not os.path.exists("NonRL_Results"):
     os.makedirs("NonRL_Results", exist_ok=True)
 
-# -----------------------------
-# FLAGS and Variables
-# -----------------------------
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                           FLAGS & STATE VARIABLES                            ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
 # Main loop flag
 running = True
@@ -132,14 +132,20 @@ comparison_visualizers = {}  # Store visualizers for each algorithm {algo_name: 
 comparison_trainers = {}  # Store training coroutines {algo_name: trainer}
 comparison_agents = {}  # Store agents for each algorithm {algo_name: agent}
 comparison_q_tables = {}  # Store Q-tables {algo_name: Q}
+comparison_heat_tables = {}  # Store HeatTables for each RL algorithm {algo_name: HeatTable}
+comparison_find_episodes = {}  # Store FindOriginEpisodes for each RL algorithm {algo_name: episodes}
+comparison_final_paths = {}  # Store final_path for each RL algorithm {algo_name: path}
+comparison_num_returns = {}  # Store numOfReturns for each RL algorithm {algo_name: count}
+comparison_first_finds = {}  # Store first find info {algo_name: (bool, episode)}
 comparison_expanded_view = None  # Which algorithm is expanded (None = grid view)
 comparison_visualization_paused = False  # F key - pause rendering only
 comparison_training_paused = False  # T key - pause computation
 comparison_show_settings = False  # C key - show settings overlay
 comparison_speed_multiplier = 1  # Speed multiplier for comparison mode 
-comparison_results = []  # List of {name, type, finished_time, steps, success}
 comparison_start_time = 0  # Time when comparison started
 comparison_show_results = False  # R key - show results overlay
+comparison_show_optimal_path = False  # P key - show optimal path with arrows
+comparison_json_saved = False  # Guard to prevent saving JSON twice
 
 # Flags for RL Visualisation display options
 show_path = False 
@@ -151,9 +157,9 @@ screen_changed = False # Flag to track when screen mode changes
 trainer = None # Coroutine for training
 
 
-# -----------------------------
-# Helpers for RL training
-# -----------------------------
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                         HELPERS — RL TRAINING                                ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
 # Get valid actions for a given state
 def valid_actions(state, maze):
@@ -184,15 +190,14 @@ def epsilon_greedy_action(state, Q, epsilon, maze):
         return random.choice(acts)
     return masked_argmax(Q[state[1], state[0]], acts)
 
-# -----------------------------
-# Helpers for SETUP MENU
-# -----------------------------
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                         HELPERS — SETUP MENU                                 ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
-# Setup Menu - JSON Editor variables
 new_json_file_name = "default"
-### Load JSON data for setup menu
+
+# Load JSON data and create input boxes for setup menu
 def load_json_for_setup():
-    """Load JSON data and create input boxes"""
     # Use comparison template if in EVERY mode
     if record_mode == "EVERY":
         json_file = "default_comparison_data.json"
@@ -219,10 +224,8 @@ def load_json_for_setup():
     
     return data
 
-### Save JSON data from setup menu
+# Save the edited values from setup input boxes back to JSON
 def save_setup_json():
-    """Save the edited values from setup input boxes back to JSON"""
-    
     global new_json_file_name
     
     # Load existing JSON to preserve non-editable fields
@@ -277,50 +280,46 @@ def save_setup_json():
     except Exception as e:
         print(f"Error saving JSON: {e}")
 
-# Callback for algorithm dropdown
+# Called when algorithm is selected from dropdown
 def on_algorithm_selected(algorithm_name):
-    """Called when algorithm is selected from dropdown"""
     global selected_algorithm
     selected_algorithm = algorithm_name
     print(f"Selected algorithm: {algorithm_name}")
 
-# Callbacks for mode selection
+# User wants to record ONE algorithm
 def select_one_algorithm(monitor):
-    """User wants to record ONE algorithm"""
     global record_mode
     record_mode = "ONE"
     set_active_monitor(monitor)
 
+# User wants to record EVERY algorithm (comparison mode)
 def select_every_algorithm(monitor):
-    """User wants to record EVERY algorithm (comparison mode)"""
     global record_mode
     record_mode = "EVERY"
     print("Record EVERY mode selected - will run all algorithms")
     # Go to Comparison_Setup_Menu to create maze
     set_active_monitor("Comparison_Setup_Menu")
 
-# Callbacks for algorithm type selection
+# User selected RL algorithms
 def select_rl_algorithms(monitor):
-    """User selected RL algorithms"""
     global nonrl_mode
     nonrl_mode = False
     set_active_monitor(monitor)
 
+# User selected non-RL algorithms
 def select_nonrl_algorithms(monitor):
-    """User selected non-RL algorithms"""
     global nonrl_mode
     nonrl_mode = True
     set_active_monitor(monitor)
 
-# Callback for non-RL algorithm selection
+# Called when non-RL algorithm is selected from dropdown
 def on_nonrl_algorithm_selected(algorithm_name):
-    """Called when non-RL algorithm is selected from dropdown"""
     global selected_nonrl_algorithm
     selected_nonrl_algorithm = algorithm_name
     print(f"Selected non-RL algorithm: {algorithm_name}")
 
+# Start non-RL algorithm visualization with current settings
 def start_nonrl_visualization(monitor):
-    """Start non-RL algorithm visualization with current settings"""
     global nonrl_visualizer, nonrl_solver
     
     if maze is None:
@@ -342,8 +341,8 @@ def start_nonrl_visualization(monitor):
     print(f"Starting {selected_nonrl_algorithm} visualization")
     set_active_monitor(monitor)
 
+# Start automated comparison of all algorithms with parallel visualization
 def start_automated_comparison():
-    """Start automated comparison of all algorithms with parallel visualization"""
     global comparison_running, comparison_algorithms, comparison_current_index, comparison_results
     global comparison_visualizers, comparison_trainers, comparison_agents, comparison_q_tables
     global activeMonitor, comparison_start_time
@@ -365,14 +364,19 @@ def start_automated_comparison():
     comparison_current_index = 0
     comparison_results = []
     comparison_running = True
+    comparison_json_saved = False
     comparison_visualizers = {}
     comparison_trainers = {}
     comparison_agents = {}
+    comparison_q_tables = {}
+    comparison_heat_tables = {}
+    comparison_find_episodes = {}
+    comparison_final_paths = {}
+    comparison_num_returns = {}
+    comparison_first_finds = {}
     
     # Start timing
-    import time
     comparison_start_time = time.time()
-    comparison_q_tables = {}
     
     print(f"Starting parallel visualization of {len(comparison_algorithms)} algorithms")
     
@@ -384,6 +388,11 @@ def start_automated_comparison():
             # Create separate agent and Q-table for each RL algorithm
             comparison_agents[algo_name] = Agent(-5, maze.gridStates, maze.start_pos)
             comparison_q_tables[algo_name] = np.zeros((maze.maze_size_height, maze.maze_size_width, 4), dtype=float)
+            comparison_heat_tables[algo_name] = [[0 for _ in range(maze.maze_size_width)] for _ in range(maze.maze_size_height)]
+            comparison_find_episodes[algo_name] = []
+            comparison_final_paths[algo_name] = []
+            comparison_num_returns[algo_name] = 0
+            comparison_first_finds[algo_name] = (False, None)
             
             # Create training coroutine
             if algo_name == "SARSA":
@@ -391,14 +400,16 @@ def start_automated_comparison():
                     comparison_agents[algo_name], maze, comparison_q_tables[algo_name],
                     EPISODES, max_steps, gamma,
                     EPS0, EPS_MIN, EPS_DECAY,
-                    ALPHA0, ALPHA_MIN, ALPHA_DECAY
+                    ALPHA0, ALPHA_MIN, ALPHA_DECAY,
+                    algo_name  # Pass algo_name for comparison tracking
                 )
             else:  # Q-Learning
                 comparison_trainers[algo_name] = q_learning_coroutine(
                     comparison_agents[algo_name], maze, comparison_q_tables[algo_name],
                     EPISODES, max_steps, gamma,
                     EPS0, EPS_MIN, EPS_DECAY,
-                    ALPHA0, ALPHA_MIN, ALPHA_DECAY
+                    ALPHA0, ALPHA_MIN, ALPHA_DECAY,
+                    algo_name  # Pass algo_name for comparison tracking
                 )
         else:
             # Create Non-RL visualizer
@@ -408,10 +419,10 @@ def start_automated_comparison():
     
     # Switch to comparison visualization screen
     activeMonitor = "Comparison_Visualisation"
-    print("Comparison visualization started - Press C for settings, F to freeze rendering, T to pause training")
+    print("Comparison visualization started - Press C for settings, P for optimal path, F to freeze, T to pause training")
 
+# Run the next algorithm in the comparison sequence
 def run_next_comparison_algorithm():
-    """Run the next algorithm in the comparison sequence"""
     global comparison_current_index, selected_algorithm, selected_nonrl_algorithm
     global training_active, trainer, nonrl_visualizer, nonrl_solver
     
@@ -453,8 +464,8 @@ def run_next_comparison_algorithm():
         nonrl_visualizer = NonRL_Visualizer(maze, nonrl_solver, agent_img)
         nonrl_visualizer.start()
 
+# Save comparison results and reset
 def finish_comparison():
-    """Save comparison results and reset"""
     global comparison_running
     
     comparison_running = False
@@ -466,85 +477,334 @@ def finish_comparison():
     # Return to main menu
     set_active_monitor("Main_Menu")
 
+# Compute learning curve: success rate in sliding windows across episodes.
+# Returns (data_points, convergence_episode).
+def _compute_learning_curve(find_episodes, total_episodes, window_size=100):
+    if total_episodes <= 0:
+        return [], -1
+    # Ensure at least 10 data points, at most 50
+    window_size = max(1, min(total_episodes // 10, max(window_size, total_episodes // 50)))
+    data_points = []
+    find_set = set(find_episodes)  # O(1) lookup
+    for start in range(0, total_episodes, window_size):
+        end = min(start + window_size, total_episodes)
+        successes = sum(1 for ep in range(start + 1, end + 1) if ep in find_set)
+        actual_window = end - start
+        rate = round(successes / actual_window * 100, 2) if actual_window > 0 else 0.0
+        data_points.append({
+            "episode_range": [start + 1, end],
+            "success_rate_percent": rate,
+            "successes_in_window": successes
+        })
+    # Convergence: first window where success rate >= threshold for 3+ consecutive windows
+    convergence_episode = -1
+    threshold = 70.0
+    consecutive_needed = 3
+    for i in range(len(data_points) - consecutive_needed + 1):
+        if all(data_points[i + j]["success_rate_percent"] >= threshold for j in range(consecutive_needed)):
+            convergence_episode = data_points[i]["episode_range"][0]
+            break
+    return data_points, convergence_episode
+
+# Save all comparison results by copying the default template and filling it with data
 def save_comparison_json():
-    """Save all comparison results to a single JSON file with comprehensive analysis"""
     from datetime import datetime
-    
-    # Calculate summary statistics
-    rl_algorithms = [r for r in comparison_results if r["type"] == "RL"]
-    nonrl_algorithms = [r for r in comparison_results if r["type"] == "NonRL"]
-    
-    # Find best performers
-    best_rl_success = max(rl_algorithms, key=lambda x: x["performance_metrics"]["success_rate_percent"]) if rl_algorithms else None
-    best_nonrl_time = min(nonrl_algorithms, key=lambda x: x["execution_metrics"]["execution_time_seconds"]) if nonrl_algorithms else None
-    best_nonrl_efficiency = min(nonrl_algorithms, key=lambda x: x["path_analysis"]["efficiency_ratio"]) if nonrl_algorithms else None
-    
-    comparison_data = {
-        "metadata": {
-            "comparison_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "maze_name": maze.name,
-            "maze_size": [maze.maze_size_width, maze.maze_size_height],
-            "total_maze_cells": maze.maze_size_width * maze.maze_size_height,
-            "start_position": maze.start_pos,
-            "goal_position": maze.origin_cor,
-            "optimal_path_length": len(maze.optimal_path),
-            "optimal_path": maze.optimal_path,
-            "algorithms_tested": len(comparison_results),
-            "rl_algorithms_count": len(rl_algorithms),
-            "nonrl_algorithms_count": len(nonrl_algorithms)
-        },
-        "summary_statistics": {
-            "best_rl_algorithm": {
-                "name": best_rl_success["algorithm"] if best_rl_success else "N/A",
-                "success_rate": best_rl_success["performance_metrics"]["success_rate_percent"] if best_rl_success else 0
-            },
-            "fastest_nonrl_algorithm": {
-                "name": best_nonrl_time["algorithm"] if best_nonrl_time else "N/A",
-                "execution_time": best_nonrl_time["execution_metrics"]["execution_time_seconds"] if best_nonrl_time else 0
-            },
-            "most_efficient_nonrl_algorithm": {
-                "name": best_nonrl_efficiency["algorithm"] if best_nonrl_efficiency else "N/A",
-                "efficiency_ratio": best_nonrl_efficiency["path_analysis"]["efficiency_ratio"] if best_nonrl_efficiency else 0
-            },
-            "average_rl_success_rate": round(sum(r["performance_metrics"]["success_rate_percent"] for r in rl_algorithms) / len(rl_algorithms), 2) if rl_algorithms else 0,
-            "average_nonrl_execution_time": round(sum(r["execution_metrics"]["execution_time_seconds"] for r in nonrl_algorithms) / len(nonrl_algorithms), 4) if nonrl_algorithms else 0
-        },
-        "algorithm_rankings": {
-            "rl_by_success_rate": sorted(
-                [{"algorithm": r["algorithm"], "success_rate": r["performance_metrics"]["success_rate_percent"]} for r in rl_algorithms],
-                key=lambda x: x["success_rate"],
-                reverse=True
-            ),
-            "nonrl_by_speed": sorted(
-                [{"algorithm": r["algorithm"], "execution_time": r["execution_metrics"]["execution_time_seconds"]} for r in nonrl_algorithms],
-                key=lambda x: x["execution_time"]
-            ),
-            "nonrl_by_efficiency": sorted(
-                [{"algorithm": r["algorithm"], "efficiency_ratio": r["path_analysis"]["efficiency_ratio"]} for r in nonrl_algorithms],
-                key=lambda x: x["efficiency_ratio"]
-            )
-        },
-        "detailed_results": comparison_results
+    import copy
+
+    # Load the default template
+    template_path = "default_comparison_results.json"
+    try:
+        with open(template_path, "r") as f:
+            comparison_data = json.load(f)
+    except FileNotFoundError:
+        print(f"Warning: {template_path} not found – using empty structure")
+        comparison_data = {"metadata": {}, "shared_config": {}, "summary": {}, "rankings": {}, "algorithms": {}}
+
+    # Deep copy so we never mutate the loaded template
+    comparison_data = copy.deepcopy(comparison_data)
+
+    # Remove template info key from output
+    comparison_data.pop("_template_info", None)
+
+    # ── Separate results by type ──
+    rl_results = [r for r in comparison_results if r["type"] == "RL"]
+    nonrl_results = [r for r in comparison_results if r["type"] == "NonRL"]
+
+    # ── Fill metadata ──
+    total_cells = maze.maze_size_width * maze.maze_size_height
+    comparison_data["metadata"] = {
+        "comparison_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "maze_name": maze.name,
+        "maze_size": [maze.maze_size_width, maze.maze_size_height],
+        "total_maze_cells": total_cells,
+        "start_position": maze.start_pos,
+        "goal_position": maze.origin_cor,
+        "optimal_path_length": len(maze.optimal_path),
+        "optimal_path": maze.optimal_path,
+        "total_algorithms_tested": len(comparison_results),
+        "rl_algorithms_count": len(rl_results),
+        "nonrl_algorithms_count": len(nonrl_results)
     }
-    
+
+    # ── Fill shared config ──
+    comparison_data["shared_config"] = {
+        "training": {
+            "episodes": EPISODES,
+            "max_steps_per_episode": max_steps,
+            "reward_for_finish": rewardForFinish,
+            "reward_for_valid_move": rewardForValidMove
+        },
+        "rl_hyperparameters": {
+            "gamma": gamma,
+            "epsilon_start": EPS0,
+            "epsilon_min": EPS_MIN,
+            "epsilon_decay": EPS_DECAY,
+            "alpha_start": ALPHA0,
+            "alpha_min": ALPHA_MIN,
+            "alpha_decay": ALPHA_DECAY
+        }
+    }
+
+    # ── Fill each algorithm's section ──
+    optimal_len = len(maze.optimal_path)
+
+    for r in rl_results:
+        algo_name = r["algorithm"]
+        perf = r["performance_metrics"]
+        path = r["path_analysis"]
+        expl = r["exploration_data"]
+        find_eps = perf.get("episodes_that_found_goal", [])
+        heatmap = expl.get("heatmap", [])
+        total_visits = sum(sum(row) for row in heatmap) if heatmap else 0
+        unique_visited = sum(1 for row in heatmap for v in row if v > 0) if heatmap else 0
+        coverage = round(unique_visited / total_cells * 100, 2) if total_cells > 0 else 0.0
+        avg_per_state = round(total_visits / unique_visited, 2) if unique_visited > 0 else 0.0
+        path_len = path.get("final_path_length", 0)
+        path_found = path_len > 0 and perf.get("total_successful_episodes", 0) > 0
+        efficiency = round(optimal_len / path_len, 4) if path_len > 0 else 0.0
+        extra = path_len - optimal_len if path_len > 0 and optimal_len > 0 else 0
+        train_time = perf.get("training_time_seconds", 0.0)
+
+        # Learning curve
+        curve_data, convergence_ep = _compute_learning_curve(find_eps, EPISODES)
+        window_sz = curve_data[0]["episode_range"][1] - curve_data[0]["episode_range"][0] + 1 if curve_data else 0
+
+        # Build sorted visit lists from heatmap
+        all_states = []
+        if heatmap:
+            for y_idx in range(len(heatmap)):
+                for x_idx in range(len(heatmap[0])):
+                    all_states.append(([x_idx, y_idx], heatmap[y_idx][x_idx]))
+        most_visited = sorted(all_states, key=lambda s: s[1], reverse=True)[:10]
+        least_visited = sorted([s for s in all_states if s[1] > 0], key=lambda s: s[1])[:10]
+
+        comparison_data["algorithms"][algo_name] = {
+            "type": "RL",
+            "status": "completed",
+            "common_metrics": {
+                "path_found": path_found,
+                "path_length": path_len,
+                "time_to_solution_seconds": round(train_time, 2),
+                "path_efficiency": efficiency,
+                "extra_steps_vs_optimal": extra
+            },
+            "performance_metrics": {
+                "first_find_episode": perf.get("first_find_episode", -1),
+                "total_successful_episodes": perf.get("total_successful_episodes", 0),
+                "success_rate_percent": perf.get("success_rate_percent", 0.0),
+                "find_percentage": perf.get("find_percentage", 0.0),
+                "episodes_that_found_goal": find_eps[:],
+                "total_episodes_trained": perf.get("total_episodes_trained", EPISODES),
+                "training_time_seconds": round(train_time, 2)
+            },
+            "learning_curve": {
+                "window_size": window_sz,
+                "data_points": curve_data,
+                "convergence_episode": convergence_ep,
+                "convergence_threshold_percent": 70.0
+            },
+            "path_analysis": {
+                "final_path": path.get("final_path", []),
+                "final_path_length": path_len,
+                "optimal_path_length": optimal_len,
+                "path_efficiency": efficiency,
+                "extra_steps": extra,
+                "reached_goal_in_final_episode": path_found
+            },
+            "exploration_data": {
+                "heatmap": heatmap,
+                "most_visited_states_top10": most_visited,
+                "least_visited_states_top10": least_visited,
+                "total_state_visits": total_visits,
+                "unique_states_visited": unique_visited,
+                "exploration_coverage_percent": coverage,
+                "average_visits_per_visited_state": avg_per_state
+            },
+            "q_table": r.get("q_table", [])
+        }
+
+    for r in nonrl_results:
+        algo_name = r["algorithm"]
+        exec_m = r["execution_metrics"]
+        path_a = r["path_analysis"]
+        expl_d = r["exploration_data"]
+        path_taken = path_a.get("path_taken", [])
+        path_len = path_a.get("path_length", 0)
+        exec_time = exec_m.get("execution_time_seconds", 0.0)
+        success = exec_m.get("success", False)
+        efficiency = round(optimal_len / path_len, 4) if path_len > 0 else 0.0
+        extra = path_len - optimal_len if path_len > 0 and optimal_len > 0 else 0
+        is_optimal = (path_len == optimal_len) if success else False
+        unique_cells = expl_d.get("unique_cells_visited", 0)
+        coverage = round(unique_cells / total_cells * 100, 2) if total_cells > 0 else 0.0
+        revisited = max(0, len(path_taken) - unique_cells) if path_taken else 0
+
+        comparison_data["algorithms"][algo_name] = {
+            "type": "NonRL",
+            "status": "completed",
+            "common_metrics": {
+                "path_found": success,
+                "path_length": path_len,
+                "time_to_solution_seconds": round(exec_time, 6),
+                "path_efficiency": efficiency,
+                "extra_steps_vs_optimal": extra
+            },
+            "execution_metrics": {
+                "execution_time_seconds": round(exec_time, 6),
+                "steps_taken": exec_m.get("steps_taken", 0),
+                "nodes_explored": exec_m.get("nodes_explored", 0),
+                "success": success,
+                "total_comparison_time_seconds": exec_m.get("total_comparison_time", 0.0)
+            },
+            "path_analysis": {
+                "path_taken": path_taken,
+                "path_length": path_len,
+                "optimal_path_length": optimal_len,
+                "efficiency_ratio": round(path_len / optimal_len, 2) if optimal_len > 0 else 0.0,
+                "extra_steps": extra,
+                "is_optimal_path": is_optimal
+            },
+            "exploration_data": {
+                "unique_cells_visited": unique_cells,
+                "total_cells_in_maze": total_cells,
+                "exploration_coverage_percent": coverage,
+                "backtracking_steps": expl_d.get("backtracking_steps", 0),
+                "revisited_cells_count": revisited
+            },
+            "algorithm_characteristics": r.get("algorithm_characteristics", {})
+        }
+
+    # ── Compute summary & rankings across all algorithms ──
+    # Collect common_metrics from all completed algorithms
+    all_completed = []
+    for algo_name, algo_data in comparison_data["algorithms"].items():
+        if algo_data.get("status") == "completed":
+            cm = algo_data["common_metrics"]
+            all_completed.append({
+                "algorithm": algo_name,
+                "type": algo_data["type"],
+                "path_found": cm["path_found"],
+                "path_length": cm["path_length"],
+                "time_seconds": cm["time_to_solution_seconds"],
+                "path_efficiency": cm["path_efficiency"]
+            })
+
+    successful = [a for a in all_completed if a["path_found"]]
+
+    # Best RL by success rate
+    best_rl = max(rl_results, key=lambda x: x["performance_metrics"]["success_rate_percent"]) if rl_results else None
+    # Fastest NonRL
+    successful_nonrl = [a for a in successful if a["type"] == "NonRL"]
+    fastest_nonrl = min(successful_nonrl, key=lambda x: x["time_seconds"]) if successful_nonrl else None
+    # Most efficient overall (shortest path among successful)
+    most_efficient = min(successful, key=lambda x: x["path_length"]) if successful else None
+    # Shortest path found
+    shortest_path = min(successful, key=lambda x: x["path_length"]) if successful else None
+    # Fastest overall
+    fastest_overall = min(successful, key=lambda x: x["time_seconds"]) if successful else None
+
+    # Average calculations
+    avg_rl_success = round(sum(r["performance_metrics"]["success_rate_percent"] for r in rl_results) / len(rl_results), 2) if rl_results else 0.0
+    avg_nonrl_time = round(sum(a["time_seconds"] for a in successful_nonrl) / len(successful_nonrl), 6) if successful_nonrl else 0.0
+    avg_all_paths = round(sum(a["path_length"] for a in successful) / len(successful), 2) if successful else 0.0
+
+    comparison_data["summary"] = {
+        "best_rl_by_success_rate": {
+            "name": best_rl["algorithm"] if best_rl else "N/A",
+            "success_rate_percent": best_rl["performance_metrics"]["success_rate_percent"] if best_rl else 0.0
+        },
+        "fastest_nonrl": {
+            "name": fastest_nonrl["algorithm"] if fastest_nonrl else "N/A",
+            "execution_time_seconds": fastest_nonrl["time_seconds"] if fastest_nonrl else 0.0
+        },
+        "most_efficient_path": {
+            "name": most_efficient["algorithm"] if most_efficient else "N/A",
+            "path_length": most_efficient["path_length"] if most_efficient else 0,
+            "efficiency_ratio": most_efficient["path_efficiency"] if most_efficient else 0.0
+        },
+        "shortest_path_found": {
+            "name": shortest_path["algorithm"] if shortest_path else "N/A",
+            "path_length": shortest_path["path_length"] if shortest_path else 0
+        },
+        "fastest_overall": {
+            "name": fastest_overall["algorithm"] if fastest_overall else "N/A",
+            "time_seconds": fastest_overall["time_seconds"] if fastest_overall else 0.0
+        },
+        "averages": {
+            "rl_success_rate_percent": avg_rl_success,
+            "nonrl_execution_time_seconds": avg_nonrl_time,
+            "all_path_lengths": avg_all_paths
+        }
+    }
+
+    # Rankings
+    comparison_data["rankings"] = {
+        "by_path_length": sorted(
+            [{"algorithm": a["algorithm"], "path_length": a["path_length"]} for a in successful],
+            key=lambda x: x["path_length"]
+        ),
+        "by_execution_time": sorted(
+            [{"algorithm": a["algorithm"], "time_seconds": a["time_seconds"]} for a in successful],
+            key=lambda x: x["time_seconds"]
+        ),
+        "rl_by_success_rate": sorted(
+            [{"algorithm": r["algorithm"], "success_rate_percent": r["performance_metrics"]["success_rate_percent"]} for r in rl_results],
+            key=lambda x: x["success_rate_percent"],
+            reverse=True
+        ),
+        "nonrl_by_efficiency": sorted(
+            [{"algorithm": a["algorithm"], "path_efficiency": a["path_efficiency"]} for a in successful_nonrl],
+            key=lambda x: x["path_efficiency"],
+            reverse=True
+        )
+    }
+
+    # ── Save to file ──
     filename = f"NonRL_Results/Comparison_{maze.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-    
     try:
         with open(filename, "w") as f:
             json.dump(comparison_data, f, indent=4)
-        print(f"Saved comprehensive comparison results to {filename}")
-        print(f"  - {len(rl_algorithms)} RL algorithms")
-        print(f"  - {len(nonrl_algorithms)} Non-RL algorithms")
-        print(f"  - Best RL: {comparison_data['summary_statistics']['best_rl_algorithm']['name']}")
-        print(f"  - Fastest Non-RL: {comparison_data['summary_statistics']['fastest_nonrl_algorithm']['name']}")
+        print(f"\nSaved comparison results to {filename}")
+        print(f"  - {len(rl_results)} RL algorithms, {len(nonrl_results)} Non-RL algorithms")
+        print(f"  - Best RL: {comparison_data['summary']['best_rl_by_success_rate']['name']} "
+              f"({comparison_data['summary']['best_rl_by_success_rate']['success_rate_percent']:.1f}%)")
+        print(f"  - Fastest overall: {comparison_data['summary']['fastest_overall']['name']}")
+        print(f"  - Shortest path: {comparison_data['summary']['shortest_path_found']['name']} "
+              f"({comparison_data['summary']['shortest_path_found']['path_length']} steps)")
+        
+        # Also copy to ComparisonVisualization/ folder for the visualization script
+        viz_folder = "ComparisonVisualization"
+        os.makedirs(viz_folder, exist_ok=True)
+        viz_filename = os.path.join(viz_folder, os.path.basename(filename))
+        shutil.copy(filename, viz_filename)
+        print(f"  - Copied to {viz_filename} (for visualize_comparison.py)")
     except Exception as e:
         print(f"Error saving comparison JSON: {e}")
 
-# Function to start non-RL visualization
+# ── Input Box Initialization ─────────────────────────────────────────────────
 
-### Initialize setup input boxes
+# Initialize input boxes for setup menu JSON editor (only first 8 variables)
 def initialize_setup_input_boxes():
-    """Initialize input boxes for setup menu JSON editor - only first 8 variables"""
     setup_json_data = load_json_for_setup()
     setup_json_keys = list(setup_json_data.keys())
     setup_json_values = [str(v) for v in setup_json_data.values()]
@@ -610,9 +870,8 @@ def initialize_setup_input_boxes():
 # Initialize setup input boxes
 setup_input_boxes, setup_input_box_labels, setup_json_keys = initialize_setup_input_boxes()
 
-# Initialize comparison setup input boxes
+# Initialize input boxes for comparison maze setup
 def initialize_comparison_input_boxes():
-    """Initialize input boxes for comparison maze setup"""
     with open("default_comparison_data.json", "r") as f:
         comparison_data = json.load(f)
     
@@ -649,9 +908,8 @@ def initialize_comparison_input_boxes():
 
 comparison_input_boxes, comparison_input_box_labels, comparison_json_keys = initialize_comparison_input_boxes()
 
-# Initialize RL settings input boxes for comparison mode
+# Initialize input boxes for RL algorithm parameters
 def initialize_rl_settings_input_boxes():
-    """Initialize input boxes for RL algorithm parameters"""
     global EPISODES, EPS0, EPS_MIN, EPS_DECAY, ALPHA0, ALPHA_MIN, ALPHA_DECAY, gamma
     
     rl_settings_keys = ["EPISODES", "EPS0", "EPS_MIN", "EPS_DECAY", "ALPHA0", "ALPHA_MIN", "ALPHA_DECAY", "gamma"]
@@ -696,9 +954,27 @@ def initialize_rl_settings_input_boxes():
 
 rl_settings_input_boxes, rl_settings_input_box_labels, rl_settings_keys = initialize_rl_settings_input_boxes()
 
-# Save comparison setup and start automated comparison
+# Update RL settings input boxes with current global variable values
+def refresh_rl_settings_from_globals():
+    global EPISODES, EPS0, EPS_MIN, EPS_DECAY, ALPHA0, ALPHA_MIN, ALPHA_DECAY, gamma
+    
+    rl_settings_values = [
+        str(EPISODES),
+        str(EPS0),
+        str(EPS_MIN),
+        str(EPS_DECAY),
+        str(ALPHA0),
+        str(ALPHA_MIN),
+        str(ALPHA_DECAY),
+        str(gamma)
+    ]
+    
+    for i, input_box in enumerate(rl_settings_input_boxes):
+        if i < len(rl_settings_values):
+            input_box.text = rl_settings_values[i]
+
+# Save comparison maze setup and go to RL settings screen
 def save_comparison_and_continue_to_rl_settings(monitor):
-    """Save comparison maze setup and go to RL settings screen"""
     global new_json_file_name
     
     # Load base comparison data
@@ -734,14 +1010,14 @@ def save_comparison_and_continue_to_rl_settings(monitor):
     # Go to RL settings screen
     set_active_monitor("Comparison_RL_Settings")
 
+# Apply RL settings and create maze, then start comparison
 def apply_rl_settings_and_load_maze(monitor):
-    """Apply RL settings and create maze, then start comparison"""
     global EPISODES, EPS0, EPS_MIN, EPS_DECAY, ALPHA0, ALPHA_MIN, ALPHA_DECAY, gamma
     global agent, maze, Q, HeatTable
     
-    # Update RL parameters from input boxes
+    # Update RL parameters from input boxes (skip EPISODES - index 0, use NumOfEpisodes from JSON instead)
     try:
-        EPISODES = int(rl_settings_input_boxes[0].text)
+        # EPISODES will be loaded from JSON in create_maze_from_json()
         EPS0 = float(rl_settings_input_boxes[1].text)
         EPS_MIN = float(rl_settings_input_boxes[2].text)
         EPS_DECAY = float(rl_settings_input_boxes[3].text)
@@ -749,13 +1025,13 @@ def apply_rl_settings_and_load_maze(monitor):
         ALPHA_MIN = float(rl_settings_input_boxes[5].text)
         ALPHA_DECAY = float(rl_settings_input_boxes[6].text)
         gamma = float(rl_settings_input_boxes[7].text)
-        print(f"RL settings applied: EPISODES={EPISODES}, EPS0={EPS0}, gamma={gamma}")
     except Exception as e:
         print(f"Error parsing RL settings: {e}")
         return
     
-    # Create maze from saved JSON
+    # Create maze from saved JSON (this will set EPISODES from NumOfEpisodes in JSON)
     create_maze_from_json(new_json_file_name)
+    print(f"RL settings applied: EPISODES={EPISODES}, EPS0={EPS0}, gamma={gamma}")
     # Create agent
     agent = Agent(-5, maze.gridStates, maze.start_pos)
     # Initialize Q-Table
@@ -767,8 +1043,8 @@ def apply_rl_settings_and_load_maze(monitor):
     # Start automated comparison
     start_automated_comparison()
 
+# Save comparison maze setup and start automated comparison
 def save_comparison_and_start(monitor):
-    """Save comparison maze setup and start automated comparison"""
     global new_json_file_name, agent, maze, Q, HeatTable
     
     # Load base comparison data
@@ -942,9 +1218,8 @@ def create_maze_from_json(json_file_name):
     # Create grid states for RL
     maze.create_grid_states(rewardForFinish,rewardForValidMove)
 
-# Settings monitor variables
+# Initialize input boxes for settings menu
 def initialize_settings_input_boxes():
-    """Initialize input boxes for settings menu"""
     input_boxes = []
     input_box_label = []
     input_box_width = int(SCREEN_WIDTH * 0.1)
@@ -1029,20 +1304,52 @@ def apply_input_box_values():
 
 
 
-# -----------------------------
-# Q-Learning Coroutine
-# -----------------------------
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                      COROUTINE TRACKER INITIALIZER                           ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+
+# Initialize tracking structures for RL coroutines.
+# Returns (heat_table, find_episodes, num_returns_tracker, first_find_tracker, final_path_tracker).
+# Pass algo_name=None when not in comparison mode.
+def _init_coroutine_trackers(algo_name, maze):
+    if algo_name is not None:
+        heat_table = comparison_heat_tables.get(algo_name, [[0 for _ in range(maze.maze_size_width)] for _ in range(maze.maze_size_height)])
+        find_episodes = comparison_find_episodes.get(algo_name, [])
+        num_returns_tracker = {"count": comparison_num_returns.get(algo_name, 0)}
+        first_find = comparison_first_finds.get(algo_name, (False, None))
+        first_find_tracker = {"found": first_find[0], "episode": first_find[1]}
+        final_path_tracker = {"path": comparison_final_paths.get(algo_name, [])}
+    else:
+        heat_table = HeatTable
+        find_episodes = FindOriginEpisodes
+        num_returns_tracker = None
+        first_find_tracker = None
+        final_path_tracker = None
+    return heat_table, find_episodes, num_returns_tracker, first_find_tracker, final_path_tracker
+
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                        Q-LEARNING COROUTINE                                  ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 def q_learning_coroutine(agent, maze, Q,
                          EPISODES, max_steps, gamma,
                          EPS0, EPS_MIN, EPS_DECAY,
-                         ALPHA0, ALPHA_MIN, ALPHA_DECAY):
+                         ALPHA0, ALPHA_MIN, ALPHA_DECAY,
+                         algo_name=None):  # Optional: for comparison mode tracking
+    
+    # Determine if we're in comparison mode
+    is_comparison = algo_name is not None
+
+    # Initialize tracking structures
+    heat_table, find_episodes, num_returns_tracker, first_find_tracker, final_path_tracker = _init_coroutine_trackers(algo_name, maze)
 
     for episode in range(EPISODES):
-        global CURRENT_EPISODE
-        global firstFind
-        global numOfReturns
-        global final_path
-        CURRENT_EPISODE = episode + 1
+        if not is_comparison:
+            global CURRENT_EPISODE
+            global firstFind
+            global numOfReturns
+            global final_path
+            CURRENT_EPISODE = episode + 1
+            
         epsilon = max(EPS_MIN, EPS0 * (EPS_DECAY ** episode))
         alpha   = max(ALPHA_MIN, ALPHA0 * (ALPHA_DECAY ** episode))
 
@@ -1062,22 +1369,35 @@ def q_learning_coroutine(agent, maze, Q,
 
         for t in range(max_steps):
             if action is None:  # terminal state (goal)
-                if not firstFind:
-                    global firstEpisode
-                    firstEpisode = CURRENT_EPISODE
-                    firstFind = True
-                numOfReturns += 1
-                FindOriginEpisodes.append(CURRENT_EPISODE)
+                if is_comparison:
+                    if not first_find_tracker["found"]:
+                        first_find_tracker["found"] = True
+                        first_find_tracker["episode"] = episode + 1
+                        comparison_first_finds[algo_name] = (True, episode + 1)
+                    num_returns_tracker["count"] += 1
+                    comparison_num_returns[algo_name] = num_returns_tracker["count"]
+                    find_episodes.append(episode + 1)
+                    comparison_find_episodes[algo_name] = find_episodes
+                    final_path_tracker["path"] = current_path[:]
+                    comparison_final_paths[algo_name] = current_path[:]
+                else:
+                    if not firstFind:
+                        global firstEpisode
+                        firstEpisode = CURRENT_EPISODE
+                        firstFind = True
+                    numOfReturns += 1
+                    FindOriginEpisodes.append(CURRENT_EPISODE)
+                    final_path = current_path[:]
                 episode_reached_goal = True
-                # Save this path as the final path
-                final_path = current_path[:]
                 break
 
             reward, next_state = agent.ProcessNextAction(action)
             x, y   = state
             nx, ny = next_state
-            if Record_HeatMap:
-                HeatTable[state[1]][state[0]] += 1
+            if Record_HeatMap or is_comparison:
+                heat_table[state[1]][state[0]] += 1
+                if is_comparison:
+                    comparison_heat_tables[algo_name] = heat_table
             next_acts = valid_actions(next_state, maze)
             target = reward + gamma * masked_max(Q[ny, nx], next_acts)
             Q[y, x, action] += alpha * (target - Q[y, x, action])
@@ -1096,20 +1416,29 @@ def q_learning_coroutine(agent, maze, Q,
 
     print("Training coroutine finished")
 
-# -----------------------------
-# SARSA Coroutine
-# -----------------------------
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                          SARSA COROUTINE                                     ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 def sarsa_coroutine(agent, maze, Q,
                     EPISODES, max_steps, gamma,
                     EPS0, EPS_MIN, EPS_DECAY,
-                    ALPHA0, ALPHA_MIN, ALPHA_DECAY):
+                    ALPHA0, ALPHA_MIN, ALPHA_DECAY,
+                    algo_name=None):  # Optional: for comparison mode tracking
+    
+    # Determine if we're in comparison mode
+    is_comparison = algo_name is not None
+
+    # Initialize tracking structures
+    heat_table, find_episodes, num_returns_tracker, first_find_tracker, final_path_tracker = _init_coroutine_trackers(algo_name, maze)
 
     for episode in range(EPISODES):
-        global CURRENT_EPISODE
-        global firstFind
-        global numOfReturns
-        global final_path
-        CURRENT_EPISODE = episode + 1
+        if not is_comparison:
+            global CURRENT_EPISODE
+            global firstFind
+            global numOfReturns
+            global final_path
+            CURRENT_EPISODE = episode + 1
+            
         epsilon = max(EPS_MIN, EPS0 * (EPS_DECAY ** episode))
         alpha   = max(ALPHA_MIN, ALPHA0 * (ALPHA_DECAY ** episode))
 
@@ -1123,22 +1452,35 @@ def sarsa_coroutine(agent, maze, Q,
 
         for t in range(max_steps):
             if action is None:  # terminal state (goal)
-                if not firstFind:
-                    global firstEpisode
-                    firstEpisode = CURRENT_EPISODE
-                    firstFind = True
-                numOfReturns += 1
-                FindOriginEpisodes.append(CURRENT_EPISODE)
+                if is_comparison:
+                    if not first_find_tracker["found"]:
+                        first_find_tracker["found"] = True
+                        first_find_tracker["episode"] = episode + 1
+                        comparison_first_finds[algo_name] = (True, episode + 1)
+                    num_returns_tracker["count"] += 1
+                    comparison_num_returns[algo_name] = num_returns_tracker["count"]
+                    find_episodes.append(episode + 1)
+                    comparison_find_episodes[algo_name] = find_episodes
+                    final_path_tracker["path"] = current_path[:]
+                    comparison_final_paths[algo_name] = current_path[:]
+                else:
+                    if not firstFind:
+                        global firstEpisode
+                        firstEpisode = CURRENT_EPISODE
+                        firstFind = True
+                    numOfReturns += 1
+                    FindOriginEpisodes.append(CURRENT_EPISODE)
+                    final_path = current_path[:]
                 episode_reached_goal = True
-                # Save this path as the final path
-                final_path = current_path[:]
                 break
 
             reward, next_state = agent.ProcessNextAction(action)
             x, y   = state
             nx, ny = next_state
-            if Record_HeatMap:
-                HeatTable[state[1]][state[0]] += 1
+            if Record_HeatMap or is_comparison:
+                heat_table[state[1]][state[0]] += 1
+                if is_comparison:
+                    comparison_heat_tables[algo_name] = heat_table
             
             # SARSA: Choose next action before update
             next_action = epsilon_greedy_action(next_state, Q, epsilon, maze)
@@ -1165,9 +1507,9 @@ def sarsa_coroutine(agent, maze, Q,
 
     print("Training coroutine finished")
 
-# -----------------------------
-# Display Helpers
-# -----------------------------
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                           DISPLAY HELPERS                                    ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
 def showConfigValuesOnScreen():
     info_lines = [
@@ -1187,12 +1529,12 @@ def showConfigValuesOnScreen():
         text_surf = HYPERPARAMETERS_FONT.render(line, True, pygame.Color("white"))
         screen.blit(text_surf, (10, 10 + i * 30))
 
-# -----------------------------
-# JSON Data Saving after training
-# -----------------------------
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                     JSON DATA SAVING (after training)                        ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
 def save_json_data(maze,
-                desccription="Test description",
+                description="Test description",
                 max_episodes=-1,
                 steps_per_episode=-1,
                 first_find=-1,
@@ -1222,7 +1564,7 @@ def save_json_data(maze,
         # If no existing file, create new data
         data = {
             "name": maze.name,
-            "description": desccription
+            "description": description
         }
     
     # Update only the training result fields
@@ -1249,16 +1591,20 @@ def save_json_data(maze,
     with open(json_file, "w") as f:
         json.dump(data, f, indent=4)
 
-# -----------------------------
-# Monitor Management
-# -----------------------------
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                         MONITOR MANAGEMENT                                   ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
 def set_active_monitor(monitor):
     global activeMonitor
     activeMonitor = monitor
+    
+    # Refresh RL settings from global variables when entering RL settings screens
+    if monitor in ["RL_Settings", "Comparison_RL_Settings"]:
+        refresh_rl_settings_from_globals()
 
+# Save non-RL algorithm results to JSON
 def save_nonrl_json_data(maze, algorithm_name, path_taken, execution_time, success, nodes_explored):
-    """Save non-RL algorithm results to JSON"""
     from datetime import datetime
     
     data = {
@@ -1291,12 +1637,8 @@ def save_nonrl_json_data(maze, algorithm_name, path_taken, execution_time, succe
     except Exception as e:
         print(f"Error saving non-RL JSON: {e}")
 
-# -----------------------------
-# Monitor Management
-# -----------------------------
-
+# Stop training, reset agent, and return to specified monitor
 def stop_training_and_return(monitor):
-    """Stop training, reset agent, and return to specified monitor"""
     global training_active, trainer, agent, CURRENT_EPISODE
     if training_active:
         training_active = False
@@ -1310,9 +1652,9 @@ def stop_training_and_return(monitor):
     # Return to specified monitor
     set_active_monitor(monitor)
 
-# -----------------------------
-# Buttons 
-# -----------------------------
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                       BUTTON CALLBACKS & HELPERS                             ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
 # HeatMap toggle callback
 def on_toggle_heatmap(is_on):
@@ -1320,9 +1662,8 @@ def on_toggle_heatmap(is_on):
     Record_HeatMap = is_on
     print(f"HeatMap recording: {is_on}")
 
-# Function to save current configuration as layout JSON
+# Save current hyperparameters and maze configuration as layout JSON
 def save_current_as_layout(monitor):
-    """Save current hyperparameters and maze configuration as layout JSON"""
     if maze is None:
         print("No maze loaded. Cannot save layout.")
         return
@@ -1363,14 +1704,12 @@ def save_current_as_layout(monitor):
     except Exception as e:
         print(f"Error saving layout: {e}")
 
-# Drop-down menu callback
+# Callback when a maze file is selected from dropdown (just stores selection)
 def on_maze_selected(filename):
-    """Callback when a maze file is selected from dropdown - just stores selection"""
     print(f"Selected: {filename}")
 
-# Load and Edit button functionality
+# Load selected JSON and create maze, then continue based on mode
 def load_maze_and_continue(monitor):
-    """Load selected JSON and create maze, then continue based on mode"""
     global agent, maze, Q, HeatTable, new_json_file_name
     
     # Get selected file from dropdown
@@ -1413,8 +1752,8 @@ def load_maze_and_continue(monitor):
     except Exception as e:
         print(f"Error loading and creating maze: {e}")
 
+# Load selected JSON from dropdown and navigate to Setup_Menu for editing
 def load_and_edit_maze(monitor):
-    """Load selected JSON from dropdown and navigate to Setup_Menu for editing"""
     global setup_input_boxes, setup_input_box_labels, setup_json_keys, new_json_file_name
     
     # Get selected file from dropdown
@@ -1454,7 +1793,9 @@ def load_and_edit_maze(monitor):
     set_active_monitor(monitor)
     print(f"Loaded {selected_file} for editing")
 
-# Function to initialize/reinitialize all buttons with current screen size
+# ── Button Definitions ──────────────────────────────────────────────────────
+
+# Initialize/reinitialize all buttons with current screen size
 def initialize_all_buttons():
     global start_button, settings_button, mainMenu_button, heatMap_Button_OnOFF
     global save_layout_button, save_setup_button, save_comparison_button, setup_menu_button, load_menu_button
@@ -1813,36 +2154,35 @@ def initialize_all_buttons():
         20
     )
 
-# -----------------------------
-# Buttons 
-# -----------------------------
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                         BUTTON INITIALIZATION                                ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
-# Initialize all buttons with current screen size
 initialize_all_buttons()
 
-# -----------------------------
-# Draw Menus
-# -----------------------------
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                           DRAW MENUS                                         ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
+# Draw the mode selection screen (ONE vs EVERY algorithm)
 def draw_Mode_Selection():
-    """Draw the mode selection screen (ONE vs EVERY algorithm)"""
-    title_surf = TITTLE_FONT.render("Select Recording Mode", True, pygame.Color("white"))
+    title_surf = TITLE_FONT.render("Select Recording Mode", True, pygame.Color("white"))
     screen.blit(title_surf, (SCREEN_WIDTH // 2 - int(SCREEN_WIDTH * 0.15), int(SCREEN_HEIGHT * 0.15)))
     
     mode_one_button.draw()
     mode_every_button.draw()
 
+# Draw the algorithm type selection screen (RL vs NOT RL)
 def draw_Algorithm_Type_Menu():
-    """Draw the algorithm type selection screen (RL vs NOT RL)"""
-    title_surf = TITTLE_FONT.render("Select Algorithm Type", True, pygame.Color("white"))
+    title_surf = TITLE_FONT.render("Select Algorithm Type", True, pygame.Color("white"))
     screen.blit(title_surf, (SCREEN_WIDTH // 2 - int(SCREEN_WIDTH * 0.15), int(SCREEN_HEIGHT * 0.15)))
     
     algorithm_type_rl_button.draw()
     algorithm_type_nonrl_button.draw()
 
+# Draw the non-RL algorithm selection screen
 def draw_NonRL_Algorithm_Menu():
-    """Draw the non-RL algorithm selection screen"""
-    title_surf = TITTLE_FONT.render("Select Non-RL Algorithm", True, pygame.Color("white"))
+    title_surf = TITLE_FONT.render("Select Non-RL Algorithm", True, pygame.Color("white"))
     screen.blit(title_surf, (SCREEN_WIDTH // 2 - int(SCREEN_WIDTH * 0.15), int(SCREEN_HEIGHT * 0.15)))
     
     # Draw label
@@ -1855,9 +2195,9 @@ def draw_NonRL_Algorithm_Menu():
     # Draw dropdown last so it appears on top
     nonrl_algorithm_dropdown.draw()
 
+# Draw the speed settings screen for non-RL visualization
 def draw_NonRL_Speed_Settings():
-    """Draw the speed settings screen for non-RL visualization"""
-    title_surf = TITTLE_FONT.render("Set Visualization Speed", True, pygame.Color("white"))
+    title_surf = TITLE_FONT.render("Set Visualization Speed", True, pygame.Color("white"))
     screen.blit(title_surf, (SCREEN_WIDTH // 2 - int(SCREEN_WIDTH * 0.15), int(SCREEN_HEIGHT * 0.15)))
     
     # Draw label
@@ -1871,8 +2211,8 @@ def draw_NonRL_Speed_Settings():
     # Draw start button
     nonrl_start_button.draw()
 
+# Draw the non-RL algorithm visualization
 def draw_NonRL_Visualisation():
-    """Draw the non-RL algorithm visualization"""
     global nonrl_visualizer
     
     if maze is None or nonrl_visualizer is None:
@@ -1945,18 +2285,23 @@ def draw_Settings_Menu():
         label_surf, label_pos = comparison_input_box_labels[i]
         screen.blit(label_surf, label_pos)
 
+# Draw the RL algorithm settings screen for comparison mode
 def draw_Comparison_RL_Settings():
-    """Draw the RL algorithm settings screen for comparison mode"""
     # Display title
-    title_surf = TITTLE_FONT.render("RL Algorithm Settings", True, pygame.Color("white"))
+    title_surf = TITLE_FONT.render("RL Algorithm Settings", True, pygame.Color("white"))
     screen.blit(title_surf, (SCREEN_WIDTH // 2 - int(SCREEN_WIDTH * 0.15), int(SCREEN_HEIGHT * 0.03)))
     
     # Draw instructions
     instruction_surf = INPUT_BOX_FONT.render("Configure parameters for Q-Learning and SARSA algorithms:", True, pygame.Color("white"))
     screen.blit(instruction_surf, (SCREEN_WIDTH // 2 - int(SCREEN_WIDTH * 0.25), int(SCREEN_HEIGHT * 0.08)))
     
-    # Draw input boxes and labels
+    note_surf = INPUT_BOX_FONT.render("(Episodes are set in previous comparison settings)", True, pygame.Color("gray"))
+    screen.blit(note_surf, (SCREEN_WIDTH // 2 - int(SCREEN_WIDTH * 0.22), int(SCREEN_HEIGHT * 0.12)))
+    
+    # Draw input boxes and labels (skip index 0 which is EPISODES)
     for i, input_box in enumerate(rl_settings_input_boxes):
+        if i == 0:  # Skip EPISODES input box in comparison mode
+            continue
         input_box.update()
         input_box.draw(screen)
         label_surf, label_pos = rl_settings_input_box_labels[i]
@@ -1965,10 +2310,10 @@ def draw_Comparison_RL_Settings():
     # Draw continue button
     rl_settings_continue_button.draw()
 
+# Draw the RL algorithm settings screen for single training
 def draw_RL_Settings():
-    """Draw the RL algorithm settings screen for single training"""
     # Display title
-    title_surf = TITTLE_FONT.render("RL Algorithm Settings", True, pygame.Color("white"))
+    title_surf = TITLE_FONT.render("RL Algorithm Settings", True, pygame.Color("white"))
     screen.blit(title_surf, (SCREEN_WIDTH // 2 - int(SCREEN_WIDTH * 0.15), int(SCREEN_HEIGHT * 0.03)))
     
     # Draw instructions
@@ -1987,7 +2332,7 @@ def draw_RL_Settings():
 
 def draw_Setup_Menu():
     # Display title
-    title_surf = TITTLE_FONT.render("JSON Setup Editor", True, pygame.Color("white"))
+    title_surf = TITLE_FONT.render("JSON Setup Editor", True, pygame.Color("white"))
     screen.blit(title_surf, (SCREEN_WIDTH // 2 - int(SCREEN_WIDTH * 0.13), int(SCREEN_HEIGHT * 0.03)))
     
     # Draw input boxes and labels (but not dropdowns yet)
@@ -2016,7 +2361,7 @@ def draw_Setup_Menu():
 
 def draw_Comparison_Setup_Menu():
     # Display title
-    title_surf = TITTLE_FONT.render("Comparison Maze Setup", True, pygame.Color("white"))
+    title_surf = TITLE_FONT.render("Comparison Maze Setup", True, pygame.Color("white"))
     screen.blit(title_surf, (SCREEN_WIDTH // 2 - int(SCREEN_WIDTH * 0.16), int(SCREEN_HEIGHT * 0.03)))
     
     # Draw instructions
@@ -2033,8 +2378,8 @@ def draw_Comparison_Setup_Menu():
     # Draw save button
     save_comparison_button.draw()
 
+# Draw parallel visualization of all 6 algorithms in grid or expanded view
 def draw_Comparison_Visualisation():
-    """Draw parallel visualization of all 6 algorithms in grid or expanded view"""
     global comparison_expanded_view
     
     if maze is None:
@@ -2079,8 +2424,8 @@ def draw_Comparison_Visualisation():
     elif not comparison_show_settings and not comparison_show_results:
         draw_comparison_status()
 
+# Draw a single algorithm visualization in its section
 def draw_algorithm_in_section(algo, algo_name, x, y, width, height, idx, expanded=False):
-    """Draw a single algorithm visualization in its section"""
     # Draw border
     pygame.draw.rect(screen, pygame.Color("white"), (x, y, width, height), 2)
     
@@ -2089,7 +2434,7 @@ def draw_algorithm_in_section(algo, algo_name, x, y, width, height, idx, expande
     pygame.draw.rect(screen, pygame.Color(40, 40, 60), (x, y, width, title_height))
     
     # Draw algorithm name
-    font = BUTTON_FONT if not expanded else TITTLE_FONT
+    font = BUTTON_FONT if not expanded else TITLE_FONT
     title_surf = font.render(algo_name, True, pygame.Color("white"))
     screen.blit(title_surf, (x + 10, y + 5))
     
@@ -2116,8 +2461,8 @@ def draw_algorithm_in_section(algo, algo_name, x, y, width, height, idx, expande
     # Draw stats at bottom
     draw_algorithm_stats(algo, algo_name, x, y + height - 55, width, expanded)
 
+# Draw maze scaled to fit in section
 def draw_scaled_maze(x, y, cell_size, algo, algo_name, expanded):
-    """Draw maze scaled to fit in section"""
     # Draw maze cells
     for row in range(maze.maze_size_height):
         for col in range(maze.maze_size_width):
@@ -2145,6 +2490,10 @@ def draw_scaled_maze(x, y, cell_size, algo, algo_name, expanded):
                 pygame.draw.line(screen, pygame.Color("black"), (cell_x, cell_y + cell_size), (cell_x + cell_size, cell_y + cell_size), 2)
             if 0 not in state.actions:  # No left action = wall on left
                 pygame.draw.line(screen, pygame.Color("black"), (cell_x, cell_y), (cell_x, cell_y + cell_size), 2)
+    
+    # Draw optimal path arrows if enabled
+    if comparison_show_optimal_path and maze.optimal_path:
+        draw_scaled_optimal_path(x, y, cell_size, maze.optimal_path, maze.start_pos)
     
     # Draw agent position
     if algo["type"] == "RL" and algo_name in comparison_agents:
@@ -2181,8 +2530,86 @@ def draw_scaled_maze(x, y, cell_size, algo, algo_name, expanded):
     # Draw black border
     pygame.draw.circle(screen, pygame.Color("black"), (start_x, start_y), agent_radius, 2)
 
+# Draw optimal path arrows on scaled maze
+def draw_scaled_optimal_path(x, y, cell_size, optimal_path, start_pos):
+    current_x = start_pos[0]
+    current_y = start_pos[1]
+    
+    arrow_padding = cell_size * 0.12
+    arrow_color = pygame.Color(0, 128, 255)  # Blue arrows
+    
+    # Create arrow polygon from start to end point
+    def arrow_polygon(start, end):
+        dx = end[0] - start[0]
+        dy = end[1] - start[1]
+        length = (dx**2 + dy**2)**0.5
+        if length == 0:
+            return []
+        
+        # Normalize
+        dx /= length
+        dy /= length
+        
+        # Arrow dimensions
+        arrow_width = cell_size * 0.15
+        arrow_head_length = cell_size * 0.25
+        arrow_head_width = cell_size * 0.30
+        
+        # Perpendicular vector
+        px = -dy
+        py = dx
+        
+        # Shaft
+        shaft_end = (end[0] - dx * arrow_head_length, end[1] - dy * arrow_head_length)
+        
+        # Arrow points
+        points = [
+            (start[0] + px * arrow_width/2, start[1] + py * arrow_width/2),
+            (shaft_end[0] + px * arrow_width/2, shaft_end[1] + py * arrow_width/2),
+            (shaft_end[0] + px * arrow_head_width/2, shaft_end[1] + py * arrow_head_width/2),
+            end,
+            (shaft_end[0] - px * arrow_head_width/2, shaft_end[1] - py * arrow_head_width/2),
+            (shaft_end[0] - px * arrow_width/2, shaft_end[1] - py * arrow_width/2),
+            (start[0] - px * arrow_width/2, start[1] - py * arrow_width/2),
+        ]
+        return points
+    
+    for direction in optimal_path:
+        cell_x = x + current_x * cell_size
+        cell_y = y + current_y * cell_size
+        
+        if direction == "Up":
+            arrow = arrow_polygon(
+                (cell_x + cell_size/2, cell_y + cell_size - arrow_padding),
+                (cell_x + cell_size/2, cell_y + arrow_padding)
+            )
+            current_y -= 1
+        elif direction == "Down":
+            arrow = arrow_polygon(
+                (cell_x + cell_size/2, cell_y + arrow_padding),
+                (cell_x + cell_size/2, cell_y + cell_size - arrow_padding)
+            )
+            current_y += 1
+        elif direction == "Left":
+            arrow = arrow_polygon(
+                (cell_x + cell_size - arrow_padding, cell_y + cell_size/2),
+                (cell_x + arrow_padding, cell_y + cell_size/2)
+            )
+            current_x -= 1
+        elif direction == "Right":
+            arrow = arrow_polygon(
+                (cell_x + arrow_padding, cell_y + cell_size/2),
+                (cell_x + cell_size - arrow_padding, cell_y + cell_size/2)
+            )
+            current_x += 1
+        else:
+            continue
+        
+        if arrow:
+            pygame.draw.polygon(screen, arrow_color, arrow)
+
+# Draw statistics for an algorithm
 def draw_algorithm_stats(algo, algo_name, x, y, width, expanded):
-    """Draw statistics for an algorithm"""
     font = HYPERPARAMETERS_FONT if not expanded else INPUT_BOX_FONT
     
     if algo["type"] == "RL" and algo_name in comparison_agents:
@@ -2202,8 +2629,8 @@ def draw_algorithm_stats(algo, algo_name, x, y, width, expanded):
     stats_surf = font.render(stats_text, True, pygame.Color("white"))
     screen.blit(stats_surf, (x + 10, y))
 
+# Draw runtime settings overlay (press C)
 def draw_comparison_settings_overlay():
-    """Draw runtime settings overlay (press C)"""
     # Semi-transparent background
     overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
     overlay.set_alpha(200)
@@ -2232,12 +2659,15 @@ def draw_comparison_settings_overlay():
         "  F - Freeze/Unfreeze Visualization",
         "  T - Pause/Resume Training",
         "  C - Toggle Settings (this menu)",
+        "  P - Toggle Optimal Path Display",
+        "  R - Toggle Results Overlay (when finished)",
         "  ESC - Exit to grid / Exit comparison",
         "  Click - Expand algorithm to full screen",
         "",
         "Status:",
         f"  Visualization: {'PAUSED' if comparison_visualization_paused else 'RUNNING'}",
-        f"  Training: {'PAUSED' if comparison_training_paused else 'RUNNING'}"
+        f"  Training: {'PAUSED' if comparison_training_paused else 'RUNNING'}",
+        f"  Optimal Path: {'ON' if comparison_show_optimal_path else 'OFF'}"
     ]
     
     for line in settings_lines:
@@ -2249,8 +2679,8 @@ def draw_comparison_settings_overlay():
     close_surf = INPUT_BOX_FONT.render("Press C to close", True, pygame.Color("yellow"))
     screen.blit(close_surf, (box_x + box_width // 2 - 70, box_y + box_height - 40))
 
+# Draw results overlay showing performance statistics
 def draw_comparison_results_overlay():
-    """Draw results overlay showing performance statistics"""
     # Semi-transparent background
     overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
     overlay.set_alpha(200)
@@ -2282,35 +2712,47 @@ def draw_comparison_results_overlay():
         screen.blit(nonrl_title, (box_x + 30, y_offset))
         y_offset += 35
         
-        # Find best performers
-        successful_nonrl = [r for r in nonrl_results if r["success"]]
+        # Find best performers (handle both old and new data structures)
+        successful_nonrl = []
+        for r in nonrl_results:
+            # Check if using new comprehensive structure or old simple structure
+            if "execution_metrics" in r:
+                if r["execution_metrics"]["success"]:
+                    successful_nonrl.append(r)
+            elif "success" in r:
+                if r["success"]:
+                    successful_nonrl.append(r)
+        
         if successful_nonrl:
-            # Find algorithm with fewest steps (minimum)
-            min_steps = min(r["steps"] for r in successful_nonrl)
-            # Find algorithm with fastest time (minimum)
-            min_time = min(r["finished_time"] for r in successful_nonrl)
-            
-            # Debug output
-            print(f"\nDEBUG - NonRL Results:")
-            print(f"  Min steps: {min_steps}")
-            print(f"  Min time: {min_time:.2f}s")
-            print(f"  All algorithms:")
-            for r in nonrl_results:
-                status = "SUCCESS" if r["success"] else "FAILED"
-                marker = ""
-                if r["success"] and r["steps"] == min_steps:
-                    marker = " ← FEWEST STEPS"
-                print(f"    {r['name']}: {r['steps']} steps, {r['finished_time']:.2f}s [{status}]{marker}")
+            # Get min steps and time (handle both structures)
+            if "execution_metrics" in successful_nonrl[0]:
+                min_steps = min(r["path_analysis"]["path_length"] for r in successful_nonrl)
+                min_time = min(r["execution_metrics"]["execution_time_seconds"] for r in successful_nonrl)
+            else:
+                min_steps = min(r["steps"] for r in successful_nonrl)
+                min_time = min(r["finished_time"] for r in successful_nonrl)
             
             for result in nonrl_results:
-                line = f"{result['name']}: {result['steps']} steps, {result['finished_time']:.2f}s"
-                color = pygame.Color("green") if result["success"] else pygame.Color("red")
+                # Handle both data structures
+                if "execution_metrics" in result:
+                    algo_name = result["algorithm"]
+                    steps = result["path_analysis"]["path_length"]
+                    time_taken = result["execution_metrics"]["execution_time_seconds"]
+                    success = result["execution_metrics"]["success"]
+                else:
+                    algo_name = result.get("name", result.get("algorithm", "Unknown"))
+                    steps = result["steps"]
+                    time_taken = result["finished_time"]
+                    success = result["success"]
+                
+                line = f"{algo_name}: {steps} steps, {time_taken:.2f}s"
+                color = pygame.Color("green") if success else pygame.Color("red")
                 
                 # Highlight best performers
-                if result["success"] and result["steps"] == min_steps:
+                if success and steps == min_steps:
                     line += " (FEWEST STEPS)"
                     color = pygame.Color("gold")
-                elif result["success"] and result["finished_time"] == min_time and result["steps"] != min_steps:
+                elif success and time_taken == min_time and steps != min_steps:
                     line += " (FASTEST)"
                 
                 result_surf = HYPERPARAMETERS_FONT.render(line, True, color)
@@ -2329,17 +2771,40 @@ def draw_comparison_results_overlay():
         screen.blit(rl_title, (box_x + 30, y_offset))
         y_offset += 35
         
-        # Find first to finish (minimum time)
+        # Find best performers (handle both structures)
         if rl_results:
-            min_finish_time = min(r["finished_time"] for r in rl_results)
+            if "performance_metrics" in rl_results[0]:
+                # New comprehensive structure
+                best_success_rate = max(r["performance_metrics"]["success_rate_percent"] for r in rl_results)
+                min_train_time = min(r["performance_metrics"]["training_time_seconds"] for r in rl_results)
+            else:
+                # Old simple structure
+                min_train_time = min(r["finished_time"] for r in rl_results)
             
             for result in rl_results:
-                line = f"{result['name']}: Completed in {result['finished_time']:.2f}s"
-                color = pygame.Color("green") if result["success"] else pygame.Color("orange")
-                
-                if result["finished_time"] == min_finish_time:
-                    line += " (FIRST DONE)"
-                    color = pygame.Color("gold")
+                # Handle both data structures
+                if "performance_metrics" in result:
+                    algo_name = result["algorithm"]
+                    train_time = result["performance_metrics"]["training_time_seconds"]
+                    success_rate = result["performance_metrics"]["success_rate_percent"]
+                    line = f"{algo_name}: {success_rate:.1f}% success, {train_time:.1f}s"
+                    color = pygame.Color("green") if success_rate > 50 else pygame.Color("orange")
+                    
+                    if success_rate == best_success_rate:
+                        line += " (BEST)"
+                        color = pygame.Color("gold")
+                    elif train_time == min_train_time:
+                        line += " (FASTEST)"
+                else:
+                    algo_name = result.get("name", result.get("algorithm", "Unknown"))
+                    train_time = result["finished_time"]
+                    success = result.get("success", False)
+                    line = f"{algo_name}: Completed in {train_time:.2f}s"
+                    color = pygame.Color("green") if success else pygame.Color("orange")
+                    
+                    if train_time == min_train_time:
+                        line += " (FIRST DONE)"
+                        color = pygame.Color("gold")
                 
                 result_surf = HYPERPARAMETERS_FONT.render(line, True, color)
                 screen.blit(result_surf, (box_x + 40, y_offset))
@@ -2350,8 +2815,8 @@ def draw_comparison_results_overlay():
     close_surf = INPUT_BOX_FONT.render("Press R to close | Press Q to quit to Main Menu", True, pygame.Color("yellow"))
     screen.blit(close_surf, (box_x + box_width // 2 - 200, y_offset))
 
+# Draw status indicators at bottom of screen
 def draw_comparison_status():
-    """Draw status indicators at bottom of screen"""
     status_y = SCREEN_HEIGHT - 25
     
     # Visualization status
@@ -2377,7 +2842,7 @@ def draw_comparison_status():
     screen.blit(hint_surf, (SCREEN_WIDTH - 200, status_y))
 
 def draw_Load_Menu():
-    title_surf = TITTLE_FONT.render("Load Maze", True, pygame.Color("white"))
+    title_surf = TITLE_FONT.render("Load Maze", True, pygame.Color("white"))
     screen.blit(title_surf, (SCREEN_WIDTH // 2 - int(SCREEN_WIDTH * 0.1), int(SCREEN_HEIGHT * 0.03)))
     
     # Draw instructions
@@ -2398,16 +2863,16 @@ def draw_Load_Menu():
 
 def draw_Choose_Menu():
     # Display title
-    title_surf = TITTLE_FONT.render("Choose Option", True, pygame.Color("white"))
+    title_surf = TITLE_FONT.render("Choose Option", True, pygame.Color("white"))
     screen.blit(title_surf, (SCREEN_WIDTH // 2 - int(SCREEN_WIDTH * 0.1), int(SCREEN_HEIGHT * 0.12)))
     
     # Draw buttons
     setup_menu_button.draw()
     load_menu_button.draw()
 
-# -----------------------------
-# Main Pygame Loop
-# -----------------------------
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                          MAIN PYGAME LOOP                                    ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
 while running:
     for event in pygame.event.get():
@@ -2447,7 +2912,10 @@ while running:
                 input_box.handle_event(event)
         
         if activeMonitor == "Comparison_RL_Settings":
-            for input_box in rl_settings_input_boxes:
+            # Skip first input box (EPISODES) in comparison mode - it's set in comparison settings
+            for i, input_box in enumerate(rl_settings_input_boxes):
+                if i == 0:  # Skip EPISODES
+                    continue
                 input_box.handle_event(event)
         
         if activeMonitor == "Load_Menu":
@@ -2484,6 +2952,10 @@ while running:
                 if len(comparison_results) > 0:
                     comparison_show_results = not comparison_show_results
             if event.key == pygame.K_q and comparison_show_results:  # Quit to main menu from results
+                # Save if not already saved
+                if not comparison_json_saved:
+                    save_comparison_json()
+                    comparison_json_saved = True
                 activeMonitor = "Main_Menu"
                 comparison_running = False
                 comparison_show_results = False
@@ -2491,6 +2963,10 @@ while running:
             if event.key == pygame.K_c:  # Toggle settings overlay
                 if not comparison_show_results:
                     comparison_show_settings = not comparison_show_settings
+            if event.key == pygame.K_p:  # Toggle optimal path display
+                comparison_show_optimal_path = not comparison_show_optimal_path
+                status = "ON" if comparison_show_optimal_path else "OFF"
+                print(f"Optimal path display: {status}")
             if event.key == pygame.K_f:  # Freeze/unfreeze visualization
                 comparison_visualization_paused = not comparison_visualization_paused
                 status = "PAUSED" if comparison_visualization_paused else "RUNNING"
@@ -2631,17 +3107,79 @@ while running:
                         next(trainer)
                 except StopIteration:
                     # Training finished for this algorithm
-                    import time
                     finish_time = time.time() - comparison_start_time
                     agent = comparison_agents[algo_name]
+                    Q_table = comparison_q_tables[algo_name]
+                    heat_table = comparison_heat_tables[algo_name]
+                    
+                    # Calculate heatmap
+                    heatmap_list = [[heat_table[y][x] for x in range(len(heat_table[0]))] for y in range(len(heat_table))]
+                    
+                    # Get tracking data for this algorithm
+                    find_episodes = comparison_find_episodes.get(algo_name, [])
+                    final_path = comparison_final_paths.get(algo_name, [])
+                    num_returns = comparison_num_returns.get(algo_name, 0)
+                    first_find, first_episode = comparison_first_finds.get(algo_name, (False, None))
+                    
+                    # Calculate success rate
+                    success_rate = (num_returns / EPISODES * 100) if EPISODES > 0 else 0
+                    find_percentage = (len(find_episodes) / EPISODES * 100) if EPISODES > 0 else 0
+                    
                     # Check if agent reached goal
-                    success = agent.activeState == list(maze.origin_cor)
+                    final_success = agent.activeState == list(maze.origin_cor)
+                    
                     comparison_results.append({
-                        "name": algo_name,
+                        "algorithm": algo_name,
                         "type": "RL",
-                        "finished_time": finish_time,
-                        "steps": -1,  # RL doesn't track single episode steps in same way
-                        "success": success
+                        "hyperparameters": {
+                            "gamma": gamma,
+                            "epsilon_start": EPS0,
+                            "epsilon_min": EPS_MIN,
+                            "epsilon_decay": EPS_DECAY,
+                            "alpha_start": ALPHA0,
+                            "alpha_min": ALPHA_MIN,
+                            "alpha_decay": ALPHA_DECAY
+                        },
+                        "training_config": {
+                            "episodes": EPISODES,
+                            "max_steps_per_episode": max_steps,
+                            "reward_for_finish": rewardForFinish,
+                            "reward_for_valid_move": rewardForValidMove
+                        },
+                        "performance_metrics": {
+                            "first_find_episode": first_episode if first_find else -1,
+                            "total_successful_episodes": num_returns,
+                            "success_rate_percent": round(success_rate, 2),
+                            "find_percentage": round(find_percentage, 2),
+                            "episodes_that_found_goal": find_episodes[:],
+                            "total_episodes_trained": EPISODES,
+                            "training_time_seconds": round(finish_time, 2)
+                        },
+                        "path_analysis": {
+                            "final_path": final_path[:],
+                            "final_path_length": len(final_path) if final_path else 0,
+                            "optimal_path": maze.optimal_path[:],
+                            "optimal_path_length": len(maze.optimal_path),
+                            "path_efficiency": round(len(maze.optimal_path) / len(final_path), 2) if final_path and len(final_path) > 0 else 0,
+                            "extra_steps": len(final_path) - len(maze.optimal_path) if final_path and len(maze.optimal_path) > 0 else -1
+                        },
+                        "exploration_data": {
+                            "heatmap": heatmap_list,
+                            "most_visited_states": sorted(
+                                [((x, y), heat_table[y][x]) for y in range(len(heat_table)) for x in range(len(heat_table[0]))],
+                                key=lambda item: item[1],
+                                reverse=True
+                            )[:10],  # Top 10 most visited states
+                            "total_state_visits": sum(sum(row) for row in heat_table),
+                            "unique_states_visited": sum(1 for row in heat_table for val in row if val > 0)
+                        },
+                        "q_table": Q_table.tolist(),
+                        "maze_info": {
+                            "name": maze.name,
+                            "size": [maze.maze_size_width, maze.maze_size_height],
+                            "start_position": maze.start_pos,
+                            "goal_position": maze.origin_cor
+                        }
                     })
                     print(f"{algo_name} training completed in {finish_time:.2f}s")
                     finished_trainers.append(algo_name)
@@ -2659,19 +3197,54 @@ while running:
                     for _ in range(steps):
                         result = viz.step()
                         if result is None and viz.is_finished:
-                            import time
                             finish_time = time.time() - comparison_start_time
                             # Use the algorithm's success flag and solution path length
                             success = viz.algorithm_solver.success
                             steps_taken = len(viz.algorithm_solver.path)
+                            nodes_explored = viz.algorithm_solver.nodes_explored
+                            execution_time = viz.algorithm_solver.execution_time
+                            path_taken = viz.path_history[:]
+                            
+                            # Save comprehensive Non-RL results
                             comparison_results.append({
-                                "name": algo_name,
+                                "algorithm": algo_name,
                                 "type": "NonRL",
-                                "finished_time": finish_time,
-                                "steps": steps_taken,
-                                "success": success
+                                "execution_metrics": {
+                                    "execution_time_seconds": round(execution_time, 6),
+                                    "steps_taken": steps_taken,
+                                    "nodes_explored": nodes_explored,
+                                    "success": success,
+                                    "finished": True,
+                                    "total_comparison_time": round(finish_time, 2)
+                                },
+                                "path_analysis": {
+                                    "path_taken": path_taken,
+                                    "path_length": steps_taken,
+                                    "optimal_path": maze.optimal_path[:],
+                                    "optimal_path_length": len(maze.optimal_path),
+                                    "efficiency_ratio": round(steps_taken / len(maze.optimal_path), 2) if len(maze.optimal_path) > 0 else -1,
+                                    "extra_steps": steps_taken - len(maze.optimal_path) if len(maze.optimal_path) > 0 else -1
+                                },
+                                "exploration_data": {
+                                    "unique_cells_visited": len(set(tuple(pos) for pos in path_taken)),
+                                    "total_cells_in_maze": maze.maze_size_width * maze.maze_size_height,
+                                    "exploration_percentage": round(len(set(tuple(pos) for pos in path_taken)) / (maze.maze_size_width * maze.maze_size_height) * 100, 2),
+                                    "backtracking_steps": max(0, steps_taken - len(set(tuple(pos) for pos in path_taken)))
+                                },
+                                "algorithm_characteristics": {
+                                    "guarantees_shortest_path": algo_name in ["BFS"],
+                                    "is_deterministic": algo_name in ["BFS", "Wall Follower", "Greedy"],
+                                    "requires_memory": algo_name in ["BFS", "Greedy"],
+                                    "uses_heuristic": algo_name in ["Greedy"]
+                                },
+                                "maze_info": {
+                                    "name": maze.name,
+                                    "size": [maze.maze_size_width, maze.maze_size_height],
+                                    "start_position": maze.start_pos,
+                                    "goal_position": maze.origin_cor
+                                }
                             })
-                            print(f"{algo_name} completed: {steps_taken} steps in {finish_time:.2f}s, success={success}")
+                            print(f"{algo_name} completed: {steps_taken} steps in {execution_time:.4f}s, success={success}")
                             break
         
         # Check if all algorithms finished
@@ -2684,6 +3257,10 @@ while running:
                 print("All algorithms completed - Press R to view results")
                 comparison_show_results = True
                 comparison_training_paused = True
+                # Auto-save comparison results JSON
+                if not comparison_json_saved:
+                    save_comparison_json()
+                    comparison_json_saved = True
 
     # advance training coroutine a bit each frame
     if training_active and trainer is not None:
@@ -2844,9 +3421,9 @@ while running:
 # End of main loop
 pygame.quit()
 
-# -----------------------------
-# Save Data to JSON
-# -----------------------------
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                      SAVE DATA TO JSON (post-loop)                           ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
 def save_heatmap_to_list(heatmap):
     return [[heatmap[y][x] for x in range(len(heatmap[0]))] for y in range(len(heatmap))]
@@ -2874,17 +3451,3 @@ save_json_data(
 )
 
 print(f"Saved training data to JsonData/{new_json_file_name}.json")
-
-
-# maze.print_q_values(Q)
-
-# Save HeatTable to CSV
-# if Record_HeatMap:
-#     with open("HeatMap.csv", "w", newline="", encoding="utf-8") as f:
-#         writer = csv.writer(f)
-#         writer.writerows(HeatTable)
-
-# # Save FindOriginEpisodes to CSV
-# with open("FindOriginEpisodes.csv", "w", newline="", encoding="utf-8") as f:
-#     writer = csv.writer(f)
-#     writer.writerows([[value] for value in FindOriginEpisodes])

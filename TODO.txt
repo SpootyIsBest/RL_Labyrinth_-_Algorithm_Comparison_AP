@@ -17,9 +17,7 @@
         FinalPath_numOfSteps
 
 
-        
 
-# Make the screen fullscreen for presentation purposes
 
 # UI - 
     Main Menu

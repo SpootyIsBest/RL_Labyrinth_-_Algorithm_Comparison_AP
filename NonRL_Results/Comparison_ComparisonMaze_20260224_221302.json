@@ -1,0 +1,1682 @@
+{
+    "metadata": {
+        "comparison_date": "2026-02-24 22:13:02",
+        "maze_name": "ComparisonMaze",
+        "maze_size": [
+            5,
+            5
+        ],
+        "total_maze_cells": 25,
+        "start_position": [
+            4,
+            4
+        ],
+        "goal_position": [
+            2,
+            2
+        ],
+        "optimal_path_length": 5,
+        "optimal_path": [
+            "Up",
+            "Left",
+            "Left",
+            "Up",
+            "Center"
+        ],
+        "algorithms_tested": 6,
+        "rl_algorithms_count": 2,
+        "nonrl_algorithms_count": 4
+    },
+    "summary_statistics": {
+        "best_rl_algorithm": {
+            "name": "Q-Learning",
+            "success_rate": 24.0
+        },
+        "fastest_nonrl_algorithm": {
+            "name": "Wall Follower",
+            "execution_time": 6e-05
+        },
+        "most_efficient_nonrl_algorithm": {
+            "name": "Greedy",
+            "efficiency_ratio": 1.4
+        },
+        "average_rl_success_rate": 20.0,
+        "average_nonrl_execution_time": 0.0014
+    },
+    "algorithm_rankings": {
+        "rl_by_success_rate": [
+            {
+                "algorithm": "Q-Learning",
+                "success_rate": 24.0
+            },
+            {
+                "algorithm": "SARSA",
+                "success_rate": 16.0
+            }
+        ],
+        "nonrl_by_speed": [
+            {
+                "algorithm": "Wall Follower",
+                "execution_time": 6e-05
+            },
+            {
+                "algorithm": "BFS",
+                "execution_time": 0.000293
+            },
+            {
+                "algorithm": "Greedy",
+                "execution_time": 0.000352
+            },
+            {
+                "algorithm": "Random Walk",
+                "execution_time": 0.005067
+            }
+        ],
+        "nonrl_by_efficiency": [
+            {
+                "algorithm": "Greedy",
+                "efficiency_ratio": 1.4
+            },
+            {
+                "algorithm": "BFS",
+                "efficiency_ratio": 1.8
+            },
+            {
+                "algorithm": "Wall Follower",
+                "efficiency_ratio": 8.2
+            },
+            {
+                "algorithm": "Random Walk",
+                "efficiency_ratio": 20.2
+            }
+        ]
+    },
+    "detailed_results": [
+        {
+            "algorithm": "Q-Learning",
+            "type": "RL",
+            "hyperparameters": {
+                "gamma": 1.0,
+                "epsilon_start": 0.9,
+                "epsilon_min": 0.05,
+                "epsilon_decay": 0.9995,
+                "alpha_start": 0.72,
+                "alpha_min": 0.1,
+                "alpha_decay": 0.997
+            },
+            "training_config": {
+                "episodes": 25,
+                "max_steps_per_episode": 12,
+                "reward_for_finish": 50,
+                "reward_for_valid_move": -1
+            },
+            "performance_metrics": {
+                "first_find_episode": 3,
+                "total_successful_episodes": 6,
+                "success_rate_percent": 24.0,
+                "find_percentage": 24.0,
+                "episodes_that_found_goal": [
+                    3,
+                    7,
+                    11,
+                    13,
+                    14,
+                    19
+                ],
+                "total_episodes_trained": 25
+            },
+            "path_analysis": {
+                "final_path": [
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        4,
+                        3
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        4,
+                        3
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        4,
+                        3
+                    ],
+                    [
+                        3,
+                        3
+                    ],
+                    [
+                        2,
+                        3
+                    ],
+                    [
+                        2,
+                        2
+                    ]
+                ],
+                "final_path_length": 11,
+                "optimal_path": [
+                    "Up",
+                    "Left",
+                    "Left",
+                    "Up",
+                    "Center"
+                ],
+                "optimal_path_length": 5,
+                "path_efficiency": 0.45
+            },
+            "exploration_data": {
+                "heatmap": [
+                    [
+                        0,
+                        0,
+                        1,
+                        4,
+                        1
+                    ],
+                    [
+                        0,
+                        0,
+                        0,
+                        4,
+                        1
+                    ],
+                    [
+                        0,
+                        0,
+                        0,
+                        9,
+                        23
+                    ],
+                    [
+                        0,
+                        0,
+                        11,
+                        28,
+                        68
+                    ],
+                    [
+                        0,
+                        0,
+                        22,
+                        44,
+                        58
+                    ]
+                ],
+                "most_visited_states": [
+                    [
+                        [
+                            4,
+                            3
+                        ],
+                        68
+                    ],
+                    [
+                        [
+                            4,
+                            4
+                        ],
+                        58
+                    ],
+                    [
+                        [
+                            3,
+                            4
+                        ],
+                        44
+                    ],
+                    [
+                        [
+                            3,
+                            3
+                        ],
+                        28
+                    ],
+                    [
+                        [
+                            4,
+                            2
+                        ],
+                        23
+                    ],
+                    [
+                        [
+                            2,
+                            4
+                        ],
+                        22
+                    ],
+                    [
+                        [
+                            2,
+                            3
+                        ],
+                        11
+                    ],
+                    [
+                        [
+                            3,
+                            2
+                        ],
+                        9
+                    ],
+                    [
+                        [
+                            3,
+                            0
+                        ],
+                        4
+                    ],
+                    [
+                        [
+                            3,
+                            1
+                        ],
+                        4
+                    ]
+                ]
+            },
+            "q_table": [
+                [
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        -0.6965932115650104,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        -0.9079443207315655,
+                        -0.6719255223489722,
+                        0.0,
+                        -0.6965932115650104
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        -0.6719255223489722
+                    ]
+                ],
+                [
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        -0.9697988811091978,
+                        27.527503483495206
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        -0.6719255223489722,
+                        0.0
+                    ]
+                ],
+                [
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        17.444435119656568,
+                        42.09136142117895
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        46.941905763804385
+                    ]
+                ],
+                [
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        47.78718161413995,
+                        49.96252792403637,
+                        0.0
+                    ],
+                    [
+                        48.96069110164365,
+                        46.927166946513886,
+                        40.32895519139388,
+                        0.0
+                    ],
+                    [
+                        47.96020455625738,
+                        0.0,
+                        45.7296435798842,
+                        45.895248873008136
+                    ]
+                ],
+                [
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        42.025766370368714,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        40.49465366300177,
+                        43.75098216500917,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        42.04044638590439,
+                        0.0,
+                        46.95813493594334,
+                        0.0
+                    ]
+                ]
+            ],
+            "maze_info": {
+                "name": "ComparisonMaze",
+                "size": [
+                    5,
+                    5
+                ],
+                "start_position": [
+                    4,
+                    4
+                ],
+                "goal_position": [
+                    2,
+                    2
+                ]
+            }
+        },
+        {
+            "algorithm": "SARSA",
+            "type": "RL",
+            "hyperparameters": {
+                "gamma": 1.0,
+                "epsilon_start": 0.9,
+                "epsilon_min": 0.05,
+                "epsilon_decay": 0.9995,
+                "alpha_start": 0.72,
+                "alpha_min": 0.1,
+                "alpha_decay": 0.997
+            },
+            "training_config": {
+                "episodes": 25,
+                "max_steps_per_episode": 12,
+                "reward_for_finish": 50,
+                "reward_for_valid_move": -1
+            },
+            "performance_metrics": {
+                "first_find_episode": 6,
+                "total_successful_episodes": 4,
+                "success_rate_percent": 16.0,
+                "find_percentage": 16.0,
+                "episodes_that_found_goal": [
+                    6,
+                    7,
+                    8,
+                    10
+                ],
+                "total_episodes_trained": 25
+            },
+            "path_analysis": {
+                "final_path": [
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        4,
+                        3
+                    ],
+                    [
+                        3,
+                        3
+                    ],
+                    [
+                        3,
+                        2
+                    ],
+                    [
+                        3,
+                        3
+                    ],
+                    [
+                        2,
+                        3
+                    ],
+                    [
+                        2,
+                        2
+                    ]
+                ],
+                "final_path_length": 7,
+                "optimal_path": [
+                    "Up",
+                    "Left",
+                    "Left",
+                    "Up",
+                    "Center"
+                ],
+                "optimal_path_length": 5,
+                "path_efficiency": 0.71
+            },
+            "exploration_data": {
+                "heatmap": [
+                    [
+                        0,
+                        1,
+                        3,
+                        5,
+                        0
+                    ],
+                    [
+                        0,
+                        0,
+                        1,
+                        6,
+                        0
+                    ],
+                    [
+                        0,
+                        0,
+                        0,
+                        11,
+                        17
+                    ],
+                    [
+                        0,
+                        0,
+                        13,
+                        37,
+                        65
+                    ],
+                    [
+                        0,
+                        0,
+                        18,
+                        43,
+                        58
+                    ]
+                ],
+                "most_visited_states": [
+                    [
+                        [
+                            4,
+                            3
+                        ],
+                        65
+                    ],
+                    [
+                        [
+                            4,
+                            4
+                        ],
+                        58
+                    ],
+                    [
+                        [
+                            3,
+                            4
+                        ],
+                        43
+                    ],
+                    [
+                        [
+                            3,
+                            3
+                        ],
+                        37
+                    ],
+                    [
+                        [
+                            2,
+                            4
+                        ],
+                        18
+                    ],
+                    [
+                        [
+                            4,
+                            2
+                        ],
+                        17
+                    ],
+                    [
+                        [
+                            2,
+                            3
+                        ],
+                        13
+                    ],
+                    [
+                        [
+                            3,
+                            2
+                        ],
+                        11
+                    ],
+                    [
+                        [
+                            3,
+                            1
+                        ],
+                        6
+                    ],
+                    [
+                        [
+                            3,
+                            0
+                        ],
+                        5
+                    ]
+                ]
+            },
+            "q_table": [
+                [
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        -1.1227521806705303,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        -0.6699097457819253,
+                        -1.1329178834273066,
+                        0.0,
+                        -0.6759752903132389
+                    ],
+                    [
+                        -0.9653431599071042,
+                        0.0,
+                        0.0,
+                        -0.9028502781505698
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                ],
+                [
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        -0.6759752903132389,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        -1.639851319988074,
+                        -2.6554766116122073
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                ],
+                [
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        -2.468985635606486,
+                        -2.8695189008930564
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        2.4552844088154644
+                    ]
+                ],
+                [
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        -1.6737855781551445,
+                        49.962534596022536,
+                        0.0
+                    ],
+                    [
+                        9.339231443103465,
+                        1.134032098211787,
+                        -3.605734845739353,
+                        0.0
+                    ],
+                    [
+                        -1.8208171364685755,
+                        0.0,
+                        6.357880025583664,
+                        -4.1642095424762084
+                    ]
+                ],
+                [
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        1.3998721350426604,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        -3.076172694579945,
+                        10.51958295669695,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0012220243737299796,
+                        0.0,
+                        9.875005711405358,
+                        0.0
+                    ]
+                ]
+            ],
+            "maze_info": {
+                "name": "ComparisonMaze",
+                "size": [
+                    5,
+                    5
+                ],
+                "start_position": [
+                    4,
+                    4
+                ],
+                "goal_position": [
+                    2,
+                    2
+                ]
+            }
+        },
+        {
+            "algorithm": "BFS",
+            "type": "NonRL",
+            "execution_metrics": {
+                "execution_time_seconds": 0.000293,
+                "steps_taken": 8,
+                "nodes_explored": 9,
+                "success": true,
+                "finished": true
+            },
+            "path_analysis": {
+                "path_taken": [
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        4,
+                        3
+                    ],
+                    [
+                        2,
+                        4
+                    ],
+                    [
+                        3,
+                        3
+                    ],
+                    [
+                        4,
+                        2
+                    ],
+                    [
+                        2,
+                        3
+                    ],
+                    [
+                        3,
+                        2
+                    ]
+                ],
+                "path_length": 9,
+                "optimal_path": [
+                    "Up",
+                    "Left",
+                    "Left",
+                    "Up",
+                    "Center"
+                ],
+                "optimal_path_length": 5,
+                "efficiency_ratio": 1.8,
+                "extra_steps": 4
+            },
+            "exploration_data": {
+                "unique_cells_visited": 8,
+                "total_cells_in_maze": 25,
+                "exploration_percentage": 32.0,
+                "backtracking_steps": 0
+            },
+            "algorithm_characteristics": {
+                "guarantees_shortest_path": true,
+                "is_deterministic": true,
+                "requires_memory": true,
+                "uses_heuristic": false
+            },
+            "maze_info": {
+                "name": "ComparisonMaze",
+                "size": [
+                    5,
+                    5
+                ],
+                "start_position": [
+                    4,
+                    4
+                ],
+                "goal_position": [
+                    2,
+                    2
+                ]
+            }
+        },
+        {
+            "algorithm": "Wall Follower",
+            "type": "NonRL",
+            "execution_metrics": {
+                "execution_time_seconds": 6e-05,
+                "steps_taken": 40,
+                "nodes_explored": 59,
+                "success": true,
+                "finished": true
+            },
+            "path_analysis": {
+                "path_taken": [
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        4,
+                        3
+                    ],
+                    [
+                        4,
+                        2
+                    ],
+                    [
+                        4,
+                        3
+                    ],
+                    [
+                        3,
+                        3
+                    ],
+                    [
+                        3,
+                        2
+                    ],
+                    [
+                        3,
+                        1
+                    ],
+                    [
+                        3,
+                        0
+                    ],
+                    [
+                        4,
+                        0
+                    ],
+                    [
+                        4,
+                        1
+                    ],
+                    [
+                        4,
+                        0
+                    ],
+                    [
+                        3,
+                        0
+                    ],
+                    [
+                        2,
+                        0
+                    ],
+                    [
+                        1,
+                        0
+                    ],
+                    [
+                        2,
+                        0
+                    ],
+                    [
+                        2,
+                        1
+                    ],
+                    [
+                        1,
+                        1
+                    ],
+                    [
+                        0,
+                        1
+                    ],
+                    [
+                        0,
+                        0
+                    ],
+                    [
+                        0,
+                        1
+                    ],
+                    [
+                        0,
+                        2
+                    ],
+                    [
+                        0,
+                        1
+                    ],
+                    [
+                        1,
+                        1
+                    ],
+                    [
+                        1,
+                        2
+                    ],
+                    [
+                        1,
+                        3
+                    ],
+                    [
+                        0,
+                        3
+                    ],
+                    [
+                        0,
+                        4
+                    ],
+                    [
+                        0,
+                        3
+                    ],
+                    [
+                        1,
+                        3
+                    ],
+                    [
+                        1,
+                        4
+                    ],
+                    [
+                        1,
+                        3
+                    ],
+                    [
+                        1,
+                        2
+                    ],
+                    [
+                        1,
+                        1
+                    ],
+                    [
+                        2,
+                        1
+                    ],
+                    [
+                        2,
+                        0
+                    ],
+                    [
+                        3,
+                        0
+                    ],
+                    [
+                        3,
+                        1
+                    ],
+                    [
+                        3,
+                        2
+                    ],
+                    [
+                        3,
+                        3
+                    ],
+                    [
+                        2,
+                        3
+                    ],
+                    [
+                        2,
+                        2
+                    ]
+                ],
+                "path_length": 41,
+                "optimal_path": [
+                    "Up",
+                    "Left",
+                    "Left",
+                    "Up",
+                    "Center"
+                ],
+                "optimal_path_length": 5,
+                "efficiency_ratio": 8.2,
+                "extra_steps": 36
+            },
+            "exploration_data": {
+                "unique_cells_visited": 23,
+                "total_cells_in_maze": 25,
+                "exploration_percentage": 92.0,
+                "backtracking_steps": 17
+            },
+            "algorithm_characteristics": {
+                "guarantees_shortest_path": false,
+                "is_deterministic": true,
+                "requires_memory": false,
+                "uses_heuristic": false
+            },
+            "maze_info": {
+                "name": "ComparisonMaze",
+                "size": [
+                    5,
+                    5
+                ],
+                "start_position": [
+                    4,
+                    4
+                ],
+                "goal_position": [
+                    2,
+                    2
+                ]
+            }
+        },
+        {
+            "algorithm": "Random Walk",
+            "type": "NonRL",
+            "execution_metrics": {
+                "execution_time_seconds": 0.005067,
+                "steps_taken": 100,
+                "nodes_explored": 101,
+                "success": true,
+                "finished": true
+            },
+            "path_analysis": {
+                "path_taken": [
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        2,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        4,
+                        3
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        2,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        2,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        2,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        2,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        2,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        2,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        2,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        4,
+                        3
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        4,
+                        3
+                    ],
+                    [
+                        3,
+                        3
+                    ],
+                    [
+                        3,
+                        2
+                    ],
+                    [
+                        3,
+                        3
+                    ],
+                    [
+                        3,
+                        2
+                    ],
+                    [
+                        3,
+                        3
+                    ],
+                    [
+                        4,
+                        3
+                    ],
+                    [
+                        4,
+                        2
+                    ],
+                    [
+                        4,
+                        3
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        4,
+                        3
+                    ],
+                    [
+                        4,
+                        2
+                    ],
+                    [
+                        4,
+                        3
+                    ],
+                    [
+                        4,
+                        2
+                    ],
+                    [
+                        4,
+                        3
+                    ],
+                    [
+                        3,
+                        3
+                    ],
+                    [
+                        4,
+                        3
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        4,
+                        3
+                    ],
+                    [
+                        4,
+                        2
+                    ],
+                    [
+                        4,
+                        3
+                    ],
+                    [
+                        3,
+                        3
+                    ],
+                    [
+                        4,
+                        3
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        2,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        2,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        2,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        2,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        4,
+                        3
+                    ],
+                    [
+                        4,
+                        2
+                    ],
+                    [
+                        4,
+                        3
+                    ],
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        4,
+                        3
+                    ],
+                    [
+                        3,
+                        3
+                    ],
+                    [
+                        2,
+                        3
+                    ],
+                    [
+                        2,
+                        2
+                    ]
+                ],
+                "path_length": 101,
+                "optimal_path": [
+                    "Up",
+                    "Left",
+                    "Left",
+                    "Up",
+                    "Center"
+                ],
+                "optimal_path_length": 5,
+                "efficiency_ratio": 20.2,
+                "extra_steps": 96
+            },
+            "exploration_data": {
+                "unique_cells_visited": 9,
+                "total_cells_in_maze": 25,
+                "exploration_percentage": 36.0,
+                "backtracking_steps": 91
+            },
+            "algorithm_characteristics": {
+                "guarantees_shortest_path": false,
+                "is_deterministic": false,
+                "requires_memory": false,
+                "uses_heuristic": false
+            },
+            "maze_info": {
+                "name": "ComparisonMaze",
+                "size": [
+                    5,
+                    5
+                ],
+                "start_position": [
+                    4,
+                    4
+                ],
+                "goal_position": [
+                    2,
+                    2
+                ]
+            }
+        },
+        {
+            "algorithm": "Greedy",
+            "type": "NonRL",
+            "execution_metrics": {
+                "execution_time_seconds": 0.000352,
+                "steps_taken": 6,
+                "nodes_explored": 9,
+                "success": true,
+                "finished": true
+            },
+            "path_analysis": {
+                "path_taken": [
+                    [
+                        4,
+                        4
+                    ],
+                    [
+                        3,
+                        4
+                    ],
+                    [
+                        2,
+                        4
+                    ],
+                    [
+                        4,
+                        3
+                    ],
+                    [
+                        3,
+                        3
+                    ],
+                    [
+                        2,
+                        3
+                    ],
+                    [
+                        2,
+                        2
+                    ]
+                ],
+                "path_length": 7,
+                "optimal_path": [
+                    "Up",
+                    "Left",
+                    "Left",
+                    "Up",
+                    "Center"
+                ],
+                "optimal_path_length": 5,
+                "efficiency_ratio": 1.4,
+                "extra_steps": 2
+            },
+            "exploration_data": {
+                "unique_cells_visited": 7,
+                "total_cells_in_maze": 25,
+                "exploration_percentage": 28.0,
+                "backtracking_steps": 0
+            },
+            "algorithm_characteristics": {
+                "guarantees_shortest_path": false,
+                "is_deterministic": true,
+                "requires_memory": true,
+                "uses_heuristic": true
+            },
+            "maze_info": {
+                "name": "ComparisonMaze",
+                "size": [
+                    5,
+                    5
+                ],
+                "start_position": [
+                    4,
+                    4
+                ],
+                "goal_position": [
+                    2,
+                    2
+                ]
+            }
+        }
+    ]
+}

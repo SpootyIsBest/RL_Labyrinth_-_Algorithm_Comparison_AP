@@ -1,0 +1,19 @@
+{
+    "name": "NonRL_Test",
+    "algorithm": "BFS",
+    "description": "Non-RL algorithm test run",
+    "maze_name": "Test_Maze",
+    "maze_size": [10, 10],
+    "start_pos": [0, 0],
+    "goal_pos": [1, 1],
+    "path_taken": [],
+    "path_length": -1,
+    "optimal_path": [],
+    "optimal_path_length": -1,
+    "execution_time": -1.0,
+    "success": false,
+    "nodes_explored": -1,
+    "steps_taken": -1,
+    "efficiency_ratio": -1.0,
+    "timestamp": ""
+}

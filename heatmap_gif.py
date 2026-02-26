@@ -11,8 +11,8 @@ from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 import numpy as np
 
 
+# Print a progress bar to console
 def print_progress_bar(iteration, total, prefix='', suffix='', length=50, fill='█'):
-    """Print a progress bar to console."""
     percent = 100 * (iteration / float(total))
     filled_length = int(length * iteration // total)
     bar = fill * filled_length + '-' * (length - filled_length)
@@ -40,8 +40,8 @@ def render_heatmap(data: np.ndarray, out_path: str, vmin: float, vmax: float, cm
     plt.close(fig)
 
 
+# Optimized 3D rendering with lower DPI for faster processing
 def render_heatmap_3d(data: np.ndarray, out_path: str, vmin: float, vmax: float, cmap: str) -> None:
-    """Optimized 3D rendering with lower DPI for faster processing."""
     # Reduce DPI for faster rendering (100 instead of 150)
     fig = plt.figure(figsize=(6, 6), dpi=100)
     ax = fig.add_subplot(111, projection="3d")

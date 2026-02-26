@@ -2645,15 +2645,16 @@ def draw_scaled_maze(x, y, cell_size, algo, algo_name, expanded):
             
             pygame.draw.rect(screen, color, (cell_x, cell_y, cell_size, cell_size))
             
-            # Draw walls (if action is NOT in allowed actions list, there's a wall)
-            # Actions: 0=left, 1=right, 2=up, 3=down
-            if 2 not in state.actions:  # No up action = wall on top
+            # Draw walls from maze_walls data (not state.actions, since the goal cell has no actions but still has open walls)
+            # maze_walls[col][row] = [top, bottom, left, right] — "Wall" means wall present
+            walls = maze.maze_walls[col][row]
+            if walls[0] == "Wall":  # Top wall
                 pygame.draw.line(screen, pygame.Color("black"), (cell_x, cell_y), (cell_x + cell_size, cell_y), 2)
-            if 1 not in state.actions:  # No right action = wall on right
+            if walls[3] == "Wall":  # Right wall
                 pygame.draw.line(screen, pygame.Color("black"), (cell_x + cell_size, cell_y), (cell_x + cell_size, cell_y + cell_size), 2)
-            if 3 not in state.actions:  # No down action = wall on bottom
+            if walls[1] == "Wall":  # Bottom wall
                 pygame.draw.line(screen, pygame.Color("black"), (cell_x, cell_y + cell_size), (cell_x + cell_size, cell_y + cell_size), 2)
-            if 0 not in state.actions:  # No left action = wall on left
+            if walls[2] == "Wall":  # Left wall
                 pygame.draw.line(screen, pygame.Color("black"), (cell_x, cell_y), (cell_x, cell_y + cell_size), 2)
     
     # Draw optimal path arrows if enabled

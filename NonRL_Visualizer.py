@@ -1,12 +1,10 @@
-"""
-NonRL_Visualizer - Handles visualization of non-RL pathfinding algorithms
-"""
+# NonRL_Visualizer — Handles visualization of non-RL pathfinding algorithms
 
 import pygame
 
 
+# Manages the visualization of non-RL algorithm execution
 class NonRL_Visualizer:
-    """Manages the visualization of non-RL algorithm execution"""
     
     def __init__(self, maze, algorithm_solver, agent_img):
         self.maze = maze
@@ -18,8 +16,8 @@ class NonRL_Visualizer:
         self.is_finished = False
         self.solver_generator = None
         
+    # Start the algorithm execution
     def start(self):
-        """Start the algorithm execution"""
         if not self.is_running:
             self.solver_generator = self.algorithm_solver.solve()
             self.is_running = True
@@ -27,20 +25,20 @@ class NonRL_Visualizer:
             self.current_step = 0
             self.path_history = [self.maze.start_pos[:]]
     
+    # Stop the algorithm execution
     def stop(self):
-        """Stop the algorithm execution"""
         self.is_running = False
         self.solver_generator = None
     
+    # Reset the visualization
     def reset(self):
-        """Reset the visualization"""
         self.stop()
         self.current_step = 0
         self.path_history = []
         self.is_finished = False
     
+    # Execute one step of the algorithm
     def step(self):
-        """Execute one step of the algorithm"""
         if self.is_running and not self.is_finished and self.solver_generator:
             try:
                 current_pos = next(self.solver_generator)
@@ -53,14 +51,14 @@ class NonRL_Visualizer:
                 return None
         return None
     
+    # Get the current position of the agent
     def get_current_position(self):
-        """Get the current position of the agent"""
         if self.path_history:
             return self.path_history[-1]
         return self.maze.start_pos
     
+    # Draw the agent at current position
     def draw_agent(self, screen, rect_size, h_margin, v_margin):
-        """Draw the agent at current position"""
         if not self.path_history:
             return
         
@@ -82,8 +80,8 @@ class NonRL_Visualizer:
         )
         screen.blit(scaled_img, (agent_x, agent_y))
     
+    # Draw the path taken so far
     def draw_path_history(self, screen, rect_size, h_margin, v_margin):
-        """Draw the path taken so far"""
         if len(self.path_history) < 2:
             return
         
@@ -102,8 +100,8 @@ class NonRL_Visualizer:
             s.fill((100, 150, 255))
             screen.blit(s, (x, y))
     
+    # Get current statistics
     def get_stats(self):
-        """Get current statistics"""
         return {
             "steps_taken": self.current_step,
             "path_length": len(self.path_history),

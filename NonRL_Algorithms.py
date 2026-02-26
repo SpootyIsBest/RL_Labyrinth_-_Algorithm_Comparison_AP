@@ -1,15 +1,13 @@
-"""
-Non-RL pathfinding algorithms for maze solving.
-Includes: BFS, Wall Follower, Random Walk, and Greedy.
-"""
+# Non-RL pathfinding algorithms for maze solving
+# Includes: BFS, Wall Follower, Random Walk, and Greedy
 
 import random
 from collections import deque
 import time
 
 
+# Base class for non-RL pathfinding algorithms
 class NonRL_Algorithm:
-    """Base class for non-RL pathfinding algorithms"""
     
     def __init__(self, maze, start_pos, goal_pos):
         self.maze = maze
@@ -20,12 +18,12 @@ class NonRL_Algorithm:
         self.execution_time = 0
         self.success = False
         
+    # Override this method in subclasses
     def solve(self):
-        """Override this method in subclasses"""
         raise NotImplementedError
     
+    # Get valid neighboring positions based on maze walls
     def get_neighbors(self, pos):
-        """Get valid neighboring positions based on maze walls"""
         x, y = pos
         neighbors = []
         actions = self.maze.gridStates[y][x].actions
@@ -42,13 +40,13 @@ class NonRL_Algorithm:
         
         return neighbors
     
+    # Calculate Manhattan distance between two positions
     def manhattan_distance(self, pos1, pos2):
-        """Calculate Manhattan distance between two positions"""
         return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
 
 
+# Breadth-First Search — guarantees shortest path
 class BFS_Algorithm(NonRL_Algorithm):
-    """Breadth-First Search - guarantees shortest path"""
     
     def solve(self):
         start_time = time.time()
@@ -81,8 +79,8 @@ class BFS_Algorithm(NonRL_Algorithm):
         return []
 
 
+# Wall Follower (Right-Hand Rule) — follows right wall
 class WallFollower_Algorithm(NonRL_Algorithm):
-    """Wall Follower (Right-Hand Rule) - follows right wall"""
     
     def __init__(self, maze, start_pos, goal_pos):
         super().__init__(maze, start_pos, goal_pos)
@@ -129,8 +127,8 @@ class WallFollower_Algorithm(NonRL_Algorithm):
         self.path = path
         return path
     
+    # Check if can move in given direction
     def can_move(self, pos, direction):
-        """Check if can move in given direction"""
         x, y = pos
         actions = self.maze.gridStates[y][x].actions
         
@@ -138,8 +136,8 @@ class WallFollower_Algorithm(NonRL_Algorithm):
         direction_to_action = {0: 2, 1: 1, 2: 3, 3: 0}  # up, right, down, left
         return direction_to_action[direction] in actions
     
+    # Move in given direction
     def move(self, pos, direction):
-        """Move in given direction"""
         x, y = pos
         if direction == 0:  # North (up)
             return [x, y - 1]
@@ -151,8 +149,8 @@ class WallFollower_Algorithm(NonRL_Algorithm):
             return [x - 1, y]
 
 
+# Random Walk — explores randomly until goal is found
 class RandomWalk_Algorithm(NonRL_Algorithm):
-    """Random Walk - explores randomly until goal is found"""
     
     def __init__(self, maze, start_pos, goal_pos):
         super().__init__(maze, start_pos, goal_pos)
@@ -191,8 +189,8 @@ class RandomWalk_Algorithm(NonRL_Algorithm):
         return path
 
 
+# Greedy Best-First Search — always moves closer to goal
 class Greedy_Algorithm(NonRL_Algorithm):
-    """Greedy Best-First Search - always moves closer to goal"""
     
     def __init__(self, maze, start_pos, goal_pos):
         super().__init__(maze, start_pos, goal_pos)
@@ -245,8 +243,8 @@ class Greedy_Algorithm(NonRL_Algorithm):
         return path
 
 
+# Factory function to create algorithm instance
 def get_algorithm(algorithm_name, maze, start_pos, goal_pos):
-    """Factory function to create algorithm instance"""
     algorithms = {
         "BFS": BFS_Algorithm,
         "Wall Follower": WallFollower_Algorithm,

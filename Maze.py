@@ -58,11 +58,8 @@ class Maze:
     
     # Get the maze layout as a 2D list (row-major order for JSON serialization)
     def get_layout(self):
-        """
-        Returns the maze layout in row-major order (y, x).
-        This format is suitable for JSON serialization and recreation via create_from_layout.
-        Returns: List of lists where layout[y][x] contains the cell direction.
-        """
+        # Returns the maze layout in row-major order (y, x)
+        # This format is suitable for JSON serialization and recreation via create_from_layout
         layout = []
         for y in range(self.maze_size_height):
             row = []

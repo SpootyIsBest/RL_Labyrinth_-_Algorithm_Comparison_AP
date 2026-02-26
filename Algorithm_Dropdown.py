@@ -14,23 +14,7 @@ class Algorithm_Dropdown:
                  selected_color=pygame.Color(100, 150, 255, 255),
                  hover_color=pygame.Color(200, 220, 255, 255),
                  outline_color=pygame.Color(0, 0, 0, 255)):
-        """
-        Drop-down menu to select RL algorithms.
-        
-        Args:
-            screen: Pygame screen surface
-            algorithms: List of algorithm names (default: ["Q-Learning", "SARSA"])
-            on_select_callback: Function called when item is selected, receives algorithm name
-            button_font: Pygame font for text
-            width: Width of the dropdown
-            height: Height of each item
-            pos: (x, y) position of dropdown
-            bg_color: Background color
-            text_color: Text color
-            selected_color: Color of selected item
-            hover_color: Color when hovering over item
-            outline_color: Border color
-        """
+        # Drop-down menu to select RL algorithms
         self.screen = screen
         self.algorithms = algorithms if algorithms else ["Q-Learning", "SARSA"]
         self.on_select_callback = on_select_callback
@@ -55,17 +39,17 @@ class Algorithm_Dropdown:
         self.main_rect = pygame.Rect(pos[0], pos[1], width, height)
         self.dropdown_rect = pygame.Rect(pos[0], pos[1] + height, width, height * len(self.algorithms))
     
+    # Returns the currently selected algorithm name
     def get_selected_algorithm(self):
-        """Returns the currently selected algorithm name"""
         return self.algorithms[self.selected_index]
     
+    # Set the selected algorithm by name
     def set_selected_algorithm(self, algorithm_name):
-        """Set the selected algorithm by name"""
         if algorithm_name in self.algorithms:
             self.selected_index = self.algorithms.index(algorithm_name)
     
+    # Handle pygame events for the dropdown
     def handle_event(self, event):
-        """Handle pygame events for the dropdown"""
         if event.type == pygame.MOUSEBUTTONDOWN:
             mouse_pos = event.pos
             
@@ -109,8 +93,8 @@ class Algorithm_Dropdown:
         
         return False
     
+    # Draw the dropdown menu
     def draw(self):
-        """Draw the dropdown menu"""
         # Draw main button
         pygame.draw.rect(self.screen, self.bg_color, self.main_rect)
         pygame.draw.rect(self.screen, self.outline_color, self.main_rect, 2)
@@ -167,14 +151,14 @@ class Algorithm_Dropdown:
                     text_rect = text_surf.get_rect(center=item_rect.center)
                     self.screen.blit(text_surf, text_rect)
     
+    # Update the position of the dropdown (useful for screen resize)
     def update_position(self, new_pos):
-        """Update the position of the dropdown (useful for screen resize)"""
         self.pos = new_pos
         self.main_rect = pygame.Rect(new_pos[0], new_pos[1], self.width, self.height)
         self.dropdown_rect = pygame.Rect(new_pos[0], new_pos[1] + self.height, self.width, self.height * len(self.algorithms))
     
+    # Update the size of the dropdown (useful for screen resize)
     def update_size(self, new_width, new_height):
-        """Update the size of the dropdown (useful for screen resize)"""
         self.width = new_width
         self.height = new_height
         self.main_rect = pygame.Rect(self.pos[0], self.pos[1], new_width, new_height)

@@ -17,25 +17,7 @@ class Drop_Down_Menu:
                  selected_color=pygame.Color(100, 150, 255, 255),
                  hover_color=pygame.Color(200, 220, 255, 255),
                  outline_color=pygame.Color(0, 0, 0, 255)):
-        """
-        Drop-down menu to display and select JSON files from a folder.
-        
-        Args:
-            screen: Pygame screen surface
-            folder_path: Path to folder containing JSON files
-            on_select_callback: Function called when item is selected, receives filename
-            button_font: Pygame font for text
-            width: Width of the dropdown
-            height: Height of each item
-            pos: (x, y) position of dropdown
-            max_visible_items: Maximum items visible before scrolling
-            border_radius: Radius for rounded corners
-            bg_color: Background color
-            text_color: Text color
-            selected_color: Color of selected item
-            hover_color: Color when hovering over item
-            outline_color: Border color
-        """
+        # Drop-down menu to display and select JSON files from a folder
         self.screen = screen
         self.folder_path = folder_path
         self.on_select_callback = on_select_callback
@@ -68,8 +50,8 @@ class Drop_Down_Menu:
         self.main_rect = pygame.Rect(pos, (width, height))
         self.arrow_rect = pygame.Rect(pos[0] + width - height, pos[1], height, height)
         
+    # Load all JSON files from the specified folder
     def load_json_files(self):
-        """Load all JSON files from the specified folder"""
         self.items = []
         
         # Check if folder exists
@@ -96,21 +78,21 @@ class Drop_Down_Menu:
             self.items = ["[Error reading folder]"]
             self.selected_item = None
     
+    # Get the currently selected filename (without special messages)
     def get_selected_file(self):
-        """Get the currently selected filename (without special messages)"""
         if self.selected_item and not self.selected_item.startswith('['):
             return self.selected_item
         return None
     
+    # Get the full path to the selected file
     def get_selected_path(self):
-        """Get the full path to the selected file"""
         filename = self.get_selected_file()
         if filename:
             return os.path.join(self.folder_path, filename)
         return None
     
+    # Draw a small triangle arrow
     def draw_arrow(self, rect, down=True):
-        """Draw a small triangle arrow"""
         center_x = rect.centerx
         center_y = rect.centery
         size = 6
@@ -132,8 +114,8 @@ class Drop_Down_Menu:
         
         pygame.draw.polygon(self.screen, self.text_color, points)
     
+    # Draw the dropdown menu
     def draw(self):
-        """Draw the dropdown menu"""
         mouse_pos = pygame.mouse.get_pos()
         
         # Draw main button (collapsed view)
@@ -159,8 +141,8 @@ class Drop_Down_Menu:
         if self.is_expanded:
             self.draw_expanded_menu(mouse_pos)
     
+    # Draw the expanded dropdown list
     def draw_expanded_menu(self, mouse_pos):
-        """Draw the expanded dropdown list"""
         if not self.items:
             return
         
@@ -214,8 +196,8 @@ class Drop_Down_Menu:
                 text_rect = text_surf.get_rect(midleft=(item_rect.left + 10, item_rect.centery))
                 self.screen.blit(text_surf, text_rect)
     
+    # Draw scrollbar for long lists
     def draw_scrollbar(self, dropdown_rect):
-        """Draw scrollbar for long lists"""
         scrollbar_width = 8
         scrollbar_x = dropdown_rect.right - scrollbar_width - 4
         
@@ -231,11 +213,9 @@ class Drop_Down_Menu:
         handle_rect = pygame.Rect(scrollbar_x, handle_y, scrollbar_width, handle_height)
         pygame.draw.rect(self.screen, pygame.Color(100, 100, 100), handle_rect, border_radius=4)
     
+    # Handle pygame events for the dropdown
+    # Returns True if an item was selected, False otherwise
     def handle_event(self, event):
-        """
-        Handle pygame events for the dropdown.
-        Returns True if an item was selected, False otherwise.
-        """
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:  # Left click
                 mouse_pos = event.pos
@@ -277,8 +257,8 @@ class Drop_Down_Menu:
         
         return False
     
+    # Reload the list of JSON files
     def refresh(self):
-        """Reload the list of JSON files"""
         old_selected = self.selected_item
         self.load_json_files()
         

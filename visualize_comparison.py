@@ -1,15 +1,14 @@
-"""
-Comparison Visualization Script
-================================
-Reads a comparison results JSON (from default_comparison_results structure)
-placed in the ComparisonVisualization/ folder and generates charts.
-
-Usage:
-    python visualize_comparison.py                     # picks the newest JSON in ComparisonVisualization/
-    python visualize_comparison.py my_results.json     # specific file inside the folder
-    python visualize_comparison.py --save              # save PNGs instead of showing interactively
-    python visualize_comparison.py --all               # generate every chart type
-"""
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                     COMPARISON VISUALIZATION SCRIPT                          ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+# Reads a comparison results JSON (from default_comparison_results structure)
+# placed in the ComparisonVisualization/ folder and generates charts.
+#
+# Usage:
+#   python visualize_comparison.py                     # picks the newest JSON
+#   python visualize_comparison.py my_results.json     # specific file
+#   python visualize_comparison.py --save              # save PNGs
+#   python visualize_comparison.py --all               # generate every chart type
 
 import json
 import sys
@@ -22,9 +21,9 @@ import matplotlib.gridspec as gridspec
 from matplotlib.patches import FancyArrowPatch
 from pathlib import Path
 
-# ─────────────────────────────────────────────
-# Configuration
-# ─────────────────────────────────────────────
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                              CONFIGURATION                                   ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
 INPUT_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ComparisonVisualization")
 OUTPUT_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ComparisonVisualization", "charts")
@@ -51,12 +50,12 @@ GRID_COLOR       = "#BDBDBD"
 ACCENT_COLOR     = "#D32F2F"
 BAR_EDGE_COLOR   = "#424242"   # dark edge for bars on white background
 
-# ─────────────────────────────────────────────
-# Data Loading
-# ─────────────────────────────────────────────
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                              DATA LOADING                                    ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
+# Load comparison JSON — if no filepath given, pick the newest file in INPUT_FOLDER
 def load_comparison_json(filepath=None):
-    """Load comparison JSON. If no filepath given, pick the newest file in INPUT_FOLDER."""
     if filepath and os.path.isabs(filepath):
         path = filepath
     elif filepath:
@@ -81,8 +80,8 @@ def load_comparison_json(filepath=None):
     return data, path
 
 
+# Return dict of {name: algo_data} for algorithms that actually ran
 def get_completed_algorithms(data):
-    """Return dict of {name: algo_data} for algorithms that actually ran."""
     algos = {}
     for name, info in data.get("algorithms", {}).items():
         if info.get("status") == "completed":
@@ -94,15 +93,14 @@ def get_color(name):
     return ALGO_COLORS.get(name, "#888888")
 
 
+# Detect whether the loaded JSON is a multi-run batch
 def is_multi_run(data):
-    """Detect whether the loaded JSON is a multi-run batch."""
     return "batch_metadata" in data and "runs" in data
 
 
+# Extract per-algorithm, per-run metrics from a multi-run JSON
+# Returns a dict: { algo_name: { 'path_lengths': [...], 'times': [...], ... } }
 def extract_multi_run_metrics(data):
-    """Extract per-algorithm, per-run metrics from a multi-run JSON.
-    Returns a dict: { algo_name: { 'path_lengths': [...], 'times': [...], ... } }
-    """
     metrics = {}
     for run in data.get("runs", []):
         algos = run.get("algorithms", {})
@@ -151,8 +149,8 @@ def extract_multi_run_metrics(data):
     return metrics
 
 
+# Apply clean light theme to figure and all axes
 def apply_style(fig, axes):
-    """Apply clean light theme to figure and all axes."""
     fig.patch.set_facecolor(BACKGROUND_COLOR)
     if not isinstance(axes, (list, np.ndarray)):
         axes = [axes]
@@ -167,12 +165,12 @@ def apply_style(fig, axes):
         ax.grid(True, color=GRID_COLOR, alpha=0.4, linestyle="-", linewidth=0.5)
 
 
-# ─────────────────────────────────────────────
-# Chart 1: Path Length Comparison (all algos)
-# ─────────────────────────────────────────────
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                    CHART 1 — PATH LENGTH COMPARISON                          ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
+# Bar chart comparing path lengths across all algorithms with optimal baseline
 def chart_path_lengths(data, algos, save=False):
-    """Bar chart comparing path lengths across all algorithms with optimal baseline."""
     optimal = data["metadata"].get("optimal_path_length", 0)
     
     names = []
@@ -217,12 +215,12 @@ def chart_path_lengths(data, algos, save=False):
     _save_or_show(fig, "path_lengths", save)
 
 
-# ─────────────────────────────────────────────
-# Chart 2: Execution Time Comparison
-# ─────────────────────────────────────────────
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                   CHART 2 — EXECUTION TIME COMPARISON                        ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
+# Bar chart comparing execution/training times
 def chart_execution_times(data, algos, save=False):
-    """Bar chart comparing execution/training times."""
     names = []
     times = []
     colors = []
@@ -255,12 +253,12 @@ def chart_execution_times(data, algos, save=False):
     _save_or_show(fig, "execution_times", save)
 
 
-# ─────────────────────────────────────────────
-# Chart 3: RL Success Rate Comparison
-# ─────────────────────────────────────────────
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                   CHART 3 — RL SUCCESS RATE COMPARISON                       ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
+# Side-by-side bars for RL algorithm success rates
 def chart_rl_success_rates(data, algos, save=False):
-    """Side-by-side bars for RL algorithm success rates."""
     rl_algos = {n: a for n, a in algos.items() if a["type"] == "RL"}
     if not rl_algos:
         return
@@ -297,12 +295,12 @@ def chart_rl_success_rates(data, algos, save=False):
     _save_or_show(fig, "rl_success_rates", save)
 
 
-# ─────────────────────────────────────────────
-# Chart 4: Learning Curves (RL)
-# ─────────────────────────────────────────────
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                      CHART 4 — LEARNING CURVES (RL)                          ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
+# Line chart of RL learning curves (success rate over episode windows)
 def chart_learning_curves(data, algos, save=False):
-    """Line chart of RL learning curves (success rate over episode windows)."""
     rl_algos = {n: a for n, a in algos.items() if a["type"] == "RL"}
     if not rl_algos:
         return
@@ -359,12 +357,12 @@ def chart_learning_curves(data, algos, save=False):
     _save_or_show(fig, "learning_curves", save)
 
 
-# ─────────────────────────────────────────────
-# Chart 5: Exploration Heatmaps (RL)
-# ─────────────────────────────────────────────
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                    CHART 5 — EXPLORATION HEATMAPS (RL)                       ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
+# Side-by-side exploration heatmaps for RL algorithms
 def chart_heatmaps(data, algos, save=False):
-    """Side-by-side exploration heatmaps for RL algorithms."""
     rl_algos = {n: a for n, a in algos.items() if a["type"] == "RL" and a.get("exploration_data", {}).get("heatmap")}
     if not rl_algos:
         return
@@ -411,12 +409,12 @@ def chart_heatmaps(data, algos, save=False):
     _save_or_show(fig, "heatmaps", save)
 
 
-# ─────────────────────────────────────────────
-# Chart 6: Path Efficiency & Extra Steps
-# ─────────────────────────────────────────────
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                  CHART 6 — PATH EFFICIENCY & EXTRA STEPS                     ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
+# Grouped bar chart: efficiency ratio + extra steps for all algorithms
 def chart_efficiency(data, algos, save=False):
-    """Grouped bar chart: efficiency ratio + extra steps for all algorithms."""
     optimal = data["metadata"].get("optimal_path_length", 1)
     
     names = []
@@ -466,12 +464,12 @@ def chart_efficiency(data, algos, save=False):
     _save_or_show(fig, "efficiency", save)
 
 
-# ─────────────────────────────────────────────
-# Chart 7: Exploration Coverage
-# ─────────────────────────────────────────────
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                     CHART 7 — EXPLORATION COVERAGE                           ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
+# Bar chart of exploration coverage percentage for all algorithms
 def chart_exploration_coverage(data, algos, save=False):
-    """Bar chart of exploration coverage percentage for all algorithms."""
     names = []
     coverages = []
     colors = []
@@ -506,12 +504,12 @@ def chart_exploration_coverage(data, algos, save=False):
     _save_or_show(fig, "exploration_coverage", save)
 
 
-# ─────────────────────────────────────────────
-# Chart 8: Summary Dashboard
-# ─────────────────────────────────────────────
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                       CHART 8 — SUMMARY DASHBOARD                            ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
+# Multi-panel dashboard with key metrics at a glance
 def chart_dashboard(data, algos, save=False):
-    """Multi-panel dashboard with key metrics at a glance."""
     meta = data["metadata"]
     summary = data.get("summary", {})
     
@@ -643,12 +641,12 @@ def chart_dashboard(data, algos, save=False):
     _save_or_show(fig, "dashboard", save)
 
 
-# ─────────────────────────────────────────────
-# Chart 9: NonRL Algorithm Characteristics Table
-# ─────────────────────────────────────────────
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║               CHART 9 — NONRL ALGORITHM CHARACTERISTICS TABLE                ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
+# Visual table comparing NonRL algorithm properties and results
 def chart_nonrl_comparison_table(data, algos, save=False):
-    """Visual table comparing NonRL algorithm properties and results."""
     nonrl = {n: a for n, a in algos.items() if a["type"] == "NonRL"}
     if not nonrl:
         return
@@ -704,12 +702,12 @@ def chart_nonrl_comparison_table(data, algos, save=False):
     _save_or_show(fig, "nonrl_table", save)
 
 
-# ─────────────────────────────────────────────
-# Chart 10: Radar Chart — Multi-Metric Overview
-# ─────────────────────────────────────────────
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║               CHART 10 — RADAR CHART (MULTI-METRIC OVERVIEW)                 ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
+# Radar/spider chart comparing normalized metrics across all successful algorithms
 def chart_radar(data, algos, save=False):
-    """Radar/spider chart comparing normalized metrics across all successful algorithms."""
     completed = {n: a for n, a in algos.items() if a["common_metrics"]["path_found"]}
     if len(completed) < 2:
         return
@@ -776,12 +774,12 @@ def chart_radar(data, algos, save=False):
     _save_or_show(fig, "radar", save)
 
 
-# ─────────────────────────────────────────────
-# Multi-Run Charts
-# ─────────────────────────────────────────────
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                           MULTI-RUN CHARTS                                   ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
+# Box plot of path lengths per algorithm across all runs
 def chart_multi_path_lengths_box(data, metrics, save=False):
-    """Box plot of path lengths per algorithm across all runs."""
     algo_names = sorted(metrics.keys(), key=lambda n: np.median(metrics[n]["path_lengths"]) if metrics[n]["path_lengths"] else 1e9)
     plot_data = [metrics[n]["path_lengths"] for n in algo_names]
     colors = [get_color(n) for n in algo_names]
@@ -824,8 +822,8 @@ def chart_multi_path_lengths_box(data, metrics, save=False):
     _save_or_show(fig, "multi_path_lengths_box", save)
 
 
+# Box plot of execution/training times per algorithm across all runs
 def chart_multi_execution_times_box(data, metrics, save=False):
-    """Box plot of execution / training times per algorithm across all runs."""
     algo_names = sorted(metrics.keys(), key=lambda n: np.median(metrics[n]["times"]) if metrics[n]["times"] else 1e9)
     plot_data = [metrics[n]["times"] for n in algo_names]
     colors = [get_color(n) for n in algo_names]
@@ -858,8 +856,8 @@ def chart_multi_execution_times_box(data, metrics, save=False):
     _save_or_show(fig, "multi_execution_times_box", save)
 
 
+# Box plot of RL success rates across runs
 def chart_multi_success_rates_box(data, metrics, save=False):
-    """Box plot of RL success rates across runs."""
     rl_names = [n for n in sorted(metrics.keys()) if metrics[n]["type"] == "RL" and metrics[n]["success_rates"]]
     if not rl_names:
         return
@@ -897,8 +895,8 @@ def chart_multi_success_rates_box(data, metrics, save=False):
     _save_or_show(fig, "multi_success_rates_box", save)
 
 
+# Bar chart showing how many runs each algorithm had the shortest path
 def chart_multi_win_rate(data, metrics, save=False):
-    """Bar chart showing how many runs each algorithm had the shortest path."""
     runs = data.get("runs", [])
     win_counts = {n: 0 for n in metrics}
     tie_counts = {n: 0 for n in metrics}
@@ -957,8 +955,8 @@ def chart_multi_win_rate(data, metrics, save=False):
     _save_or_show(fig, "multi_win_rate", save)
 
 
+# Grouped bar chart of average path length and time with min/max error bars
 def chart_multi_aggregate_bars(data, metrics, save=False):
-    """Grouped bar chart of average path length and time with min/max error bars."""
     agg = data.get("aggregate_statistics", {})
     if not agg:
         return
@@ -1005,8 +1003,8 @@ def chart_multi_aggregate_bars(data, metrics, save=False):
     _save_or_show(fig, "multi_aggregate_bars", save)
 
 
+# Averaged RL learning curves with ±std shaded bands across runs
 def chart_multi_learning_curves_avg(data, metrics, save=False):
-    """Averaged RL learning curves with ±std shaded bands across runs."""
     rl_names = [n for n in sorted(metrics.keys()) if metrics[n]["type"] == "RL" and metrics[n]["learning_curves"]]
     if not rl_names:
         return
@@ -1060,8 +1058,8 @@ def chart_multi_learning_curves_avg(data, metrics, save=False):
     _save_or_show(fig, "multi_learning_curves_avg", save)
 
 
+# Bar chart of coefficient of variation (std/mean) for path lengths — lower = more consistent
 def chart_multi_consistency(data, metrics, save=False):
-    """Bar chart of coefficient of variation (std/mean) for path lengths — lower = more consistent."""
     algo_names = sorted(n for n in metrics if len(metrics[n]["path_lengths"]) >= 2)
     if not algo_names:
         return
@@ -1093,8 +1091,8 @@ def chart_multi_consistency(data, metrics, save=False):
     _save_or_show(fig, "multi_consistency", save)
 
 
+# Multi-run overview dashboard with batch metadata and aggregate stats
 def chart_multi_dashboard(data, metrics, save=False):
-    """Multi-run overview dashboard with batch metadata and aggregate stats."""
     batch = data["batch_metadata"]
     agg = data.get("aggregate_statistics", {})
     total_runs = batch["total_runs"]
@@ -1271,8 +1269,8 @@ def chart_multi_dashboard(data, metrics, save=False):
     _save_or_show(fig, "multi_dashboard", save)
 
 
+# Box plot of path efficiency across runs per algorithm
 def chart_multi_efficiency_box(data, metrics, save=False):
-    """Box plot of path efficiency across runs per algorithm."""
     algo_names = sorted(n for n in metrics if metrics[n]["efficiencies"])
     if not algo_names:
         return
@@ -1311,9 +1309,9 @@ def chart_multi_efficiency_box(data, metrics, save=False):
     _save_or_show(fig, "multi_efficiency_box", save)
 
 
-# ─────────────────────────────────────────────
-# Utilities
-# ─────────────────────────────────────────────
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                               UTILITIES                                      ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
 def _save_or_show(fig, name, save):
     if save:
@@ -1326,8 +1324,8 @@ def _save_or_show(fig, name, save):
         plt.show()
 
 
+# Print a formatted text summary to the console
 def print_text_summary(data, algos):
-    """Print a formatted text summary to the console."""
     meta = data["metadata"]
     summary = data.get("summary", {})
     rankings = data.get("rankings", {})
@@ -1367,8 +1365,8 @@ def print_text_summary(data, algos):
     print("\n" + "=" * 60 + "\n")
 
 
+# Print a formatted text summary for multi-run batch results
 def print_multi_run_summary(data, metrics):
-    """Print a formatted text summary for multi-run batch results."""
     batch = data["batch_metadata"]
     agg = data.get("aggregate_statistics", {})
 
@@ -1425,9 +1423,9 @@ def print_multi_run_summary(data, metrics):
     print("\n" + "=" * 65 + "\n")
 
 
-# ─────────────────────────────────────────────
-# Main
-# ─────────────────────────────────────────────
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                                  MAIN                                        ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
 def main():
     # Parse arguments
@@ -1451,8 +1449,8 @@ def main():
         _main_single_run(data, filepath, save_mode)
 
 
+# Original flow for a single-run comparison JSON
 def _main_single_run(data, filepath, save_mode):
-    """Original flow for a single-run comparison JSON."""
     algos = get_completed_algorithms(data)
     
     if not algos:
@@ -1504,8 +1502,8 @@ def _main_single_run(data, filepath, save_mode):
     print("\nDone!")
 
 
+# Flow for a multi-run batch JSON
 def _main_multi_run(data, filepath, save_mode):
-    """Flow for a multi-run batch JSON."""
     batch = data["batch_metadata"]
     total_runs = batch["total_runs"]
     metrics = extract_multi_run_metrics(data)

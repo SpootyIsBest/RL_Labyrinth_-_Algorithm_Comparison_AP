@@ -16,11 +16,9 @@ class Agent:
     def _in_bounds(self, x, y):
         return 0 <= x < len(self.grid[0]) and 0 <= y < len(self.grid)
     
+    # Pick the best action in 'state' according to Q, respecting allowed actions
+    # Returns None if there are no allowed actions (terminal state)
     def _greedy_action_from_Q(self, state, Q):
-        """
-        Pick the best action in 'state' according to Q, respecting allowed actions.
-        Returns None if there are no allowed actions (terminal state).
-        """
         x, y = state
         allowed = self.grid[y][x].actions  # e.g. [0,1,3] etc.
 
@@ -34,12 +32,11 @@ class Agent:
         # tie-break randomly between equally good actions
         return random.choice(best_actions)
 
+    # Process the next action for the agent
+    # Returns: (reward, next_state[list[x,y]])
+    # If action is illegal, gives invalid penalty and stays in place
+    # Otherwise moves into the next cell and receives that cell's reward
     def ProcessNextAction(self, action):
-        """
-        Returns: (reward, next_state[list[x,y]])
-        - If action is illegal from current cell, gives invalid penalty and stays in place.
-        - Otherwise moves into the next cell and receives that cell's reward.
-        """
         x, y = self.activeState
         allowed = self.grid[y][x].actions
 

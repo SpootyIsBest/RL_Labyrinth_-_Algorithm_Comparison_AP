@@ -27,8 +27,8 @@ def natural_key(path: str) -> List[object]:
     return [int(text) if text.isdigit() else text.lower() for text in re.split(r"(\d+)", path)]
 
 
+# Create 3D bar mesh data efficiently for Plotly — each cell is a 1x1 square with height = value
 def create_bar_mesh(data: np.ndarray, cmap_name: str, vmin: float, vmax: float):
-    """Create 3D bar mesh data efficiently for Plotly - each cell is a 1x1 square with height = value."""
     y_size, x_size = data.shape
     
     # Small gap between blocks so they're visually distinct
@@ -101,8 +101,8 @@ def create_bar_mesh(data: np.ndarray, cmap_name: str, vmin: float, vmax: float):
     return vertices, faces_i, faces_j, faces_k, colors
 
 
+# Create efficient 3D surface plot for large grids
 def create_surface_plot(data: np.ndarray, vmin: float, vmax: float, cmap: str):
-    """Create efficient 3D surface plot for large grids."""
     y_size, x_size = data.shape
     x = np.arange(x_size)
     y = np.arange(y_size)
@@ -119,8 +119,8 @@ def create_surface_plot(data: np.ndarray, vmin: float, vmax: float, cmap: str):
     )
 
 
+# Create Plotly figure — uses 3D rectangular bars (skyscrapers) by default
 def create_figure(data: np.ndarray, vmin: float, vmax: float, cmap: str, frame_idx: int, total_frames: int, use_bars: bool = True):
-    """Create Plotly figure - uses 3D rectangular bars (skycrapers) by default."""
     y_size, x_size = data.shape
     max_dim = max(y_size, x_size)
     

@@ -1,4 +1,5 @@
 import random
+import sys
 import pygame
 import numpy as np
 import csv
@@ -306,6 +307,13 @@ def select_every_algorithm(monitor):
     print("Record EVERY mode selected - will run all algorithms")
     # Go to Comparison_Setup_Menu to create maze
     set_active_monitor("Comparison_Setup_Menu")
+
+# Launch the Parameter Sweep tool in a separate process
+def launch_parameter_sweep(monitor):
+    import subprocess
+    script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "parameter_sweep.py")
+    print(f"Launching Parameter Sweep tool: {script_path}")
+    subprocess.Popen([sys.executable, script_path], cwd=os.path.dirname(os.path.abspath(__file__)))
 
 # User selected RL algorithms
 def select_rl_algorithms(monitor):
@@ -1945,7 +1953,7 @@ def initialize_all_buttons():
     global rl_settings_continue_button, rl_settings_start_button
     global back_to_choose_button, load_edit_button, load_continue_button, rl_back_button, maze_dropdown
     # NEW: Buttons for new menu screens
-    global mode_one_button, mode_every_button
+    global mode_one_button, mode_every_button, mode_sweep_button
     global algorithm_type_rl_button, algorithm_type_nonrl_button
     global nonrl_algorithm_dropdown, nonrl_continue_button, nonrl_speed_input, nonrl_start_button
     global nonrl_back_button
@@ -1974,6 +1982,19 @@ def initialize_all_buttons():
                         int(SCREEN_WIDTH * 0.2),
                         int(SCREEN_HEIGHT * 0.12),
                         (SCREEN_WIDTH/2 - int(SCREEN_WIDTH * 0.1), SCREEN_HEIGHT/2 + int(SCREEN_HEIGHT * 0.05)),
+                        7,
+                        20
+                        )
+    
+    mode_sweep_button = Button(screen,
+                        "Parameter Sweep",
+                        "Mode_Selection",
+                        launch_parameter_sweep,
+                        BUTTON_FONT,
+                        BUTTON_FONT_INFLATED,
+                        int(SCREEN_WIDTH * 0.2),
+                        int(SCREEN_HEIGHT * 0.12),
+                        (SCREEN_WIDTH/2 - int(SCREEN_WIDTH * 0.1), SCREEN_HEIGHT/2 + int(SCREEN_HEIGHT * 0.2)),
                         7,
                         20
                         )
@@ -2328,6 +2349,7 @@ def draw_Mode_Selection():
     
     mode_one_button.draw()
     mode_every_button.draw()
+    mode_sweep_button.draw()
 
 # Draw the algorithm type selection screen (RL vs NOT RL)
 def draw_Algorithm_Type_Menu():

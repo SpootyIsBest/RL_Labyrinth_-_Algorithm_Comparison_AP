@@ -8,6 +8,17 @@ Built with **Python & Pygame**, this tool lets you watch 6 algorithms race throu
 
 Postaveno v **Pythonu a Pygame**. Aplikace umoznuje sledovat 6 algoritmu na stejnem bludisti, ukladat JSON vysledky a tvorit grafy jednim prikazem.
 
+## ✅ Quick Run / Rychle spusteni
+
+```bash
+pip install -r requirements.txt
+python main.py
+```
+
+**EN:** That's all you need to run the application.
+
+**CZ:** To je vse, co potrebujete ke spusteni aplikace.
+
 ---
 
 ## 📑 Table of Contents
@@ -140,6 +151,8 @@ Nainstalujete: `pygame`, `numpy`, `matplotlib`, `imageio`, `imageio-ffmpeg`, `pl
 
 ### Running the Program / Spusteni
 
+**Main app (required):**
+
 ```bash
 python main.py
 ```
@@ -147,6 +160,10 @@ python main.py
 **EN:** A Pygame window (1280×720, resizable) opens at the **Mode Selection** screen.
 
 **CZ:** Otevre se Pygame okno (1280×720, resizable) na obrazovce **Mode Selection**.
+
+**EN:** No extra startup script is needed. All core functionality starts from `main.py`.
+
+**CZ:** Neni potreba zadny dalsi startovaci skript. Cela hlavni aplikace startuje z `main.py`.
 
 ---
 
@@ -331,16 +348,16 @@ After running comparisons, generate charts from the saved JSON:
 
 ```bash
 # Auto-pick newest JSON, show interactively
-python visualize_comparison.py
+python src/tools/visualize_comparison.py
 
 # Use a specific file
-python visualize_comparison.py my_results.json
+python src/tools/visualize_comparison.py my_results.json
 
 # Save all charts as PNGs
-python visualize_comparison.py --save
+python src/tools/visualize_comparison.py --save
 
 # Generate every chart type
-python visualize_comparison.py --all
+python src/tools/visualize_comparison.py --all
 ```
 
 **EN:** The script auto-detects single-run vs multi-run format. It reads JSONs from `ComparisonVisualization/` by default.
@@ -385,37 +402,48 @@ Charts are saved to `ComparisonVisualization/charts/`.
 ```
 📂 RL_Labyrinth_-_Algorithm_Comparison_AP/
 │
-├── 🎮 main.py                     # Main entry point (Pygame application)
-├── 🤖 Agent.py                    # Agent logic & policy updates
-├── 🧩 Maze.py                     # Maze environment & transitions
-├── 📍 State.py                    # State representation
-├── 🧭 NonRL_Algorithms.py         # BFS, Wall Follower, Random Walk, Greedy
-├── 🎨 NonRL_Visualizer.py         # Step-by-step Non-RL visualizer
-├── 📺 Monitors.py                 # Screen/monitor management
-├── 🔘 Button.py                   # UI button component
-├── 🔄 Button_On_Off.py            # Toggle button component
-├── 📝 InputBox.py                 # Text input box component
-├── 📋 Drop_Down_Menu.py           # Dropdown menu component
-├── 📋 Algorithm_Dropdown.py       # Algorithm selector dropdown
-├── 📊 visualize_comparison.py     # Post-hoc chart generator (matplotlib)
-├── 🧪 parameter_sweep.py           # Parameter sweep tool
-├── 🔥 heatmap_gif.py              # Heatmap animation generator
-├── 👁️ heatmap_viewer.py           # Heatmap viewer utility
+├── 🎮 main.py                      # Main entry point (run this file)
+├── 📄 requirements.txt             # Python dependencies
+├── 📄 README.md
 │
-├── 📄 default_data.json           # Template for single-algorithm mode
-├── 📄 default_comparison_data.json# Template for comparison mode
-├── 📄 default_comparison_results.json # Template for comparison output
-├── 📄 default_layout.json         # Default maze layout
-├── 📄 default_nonrl_data.json     # Template for Non-RL results
-├── 📄 requirements.txt            # Python dependencies
+├── 📂 src/
+│   ├── 📂 agents/
+│   │   └── Agent.py                # RL agent
+│   ├── 📂 environment/
+│   │   ├── Maze.py                 # Maze environment
+│   │   └── State.py                # State representation
+│   ├── 📂 algorithms/
+│   │   ├── NonRL_Algorithms.py     # BFS, Wall Follower, Random Walk, Greedy
+│   │   └── NonRL_Visualizer.py     # Non-RL visualization logic
+│   ├── 📂 ui/
+│   │   ├── Button.py
+│   │   ├── Button_On_Off.py
+│   │   ├── InputBox.py
+│   │   ├── Drop_Down_Menu.py
+│   │   └── Algorithm_Dropdown.py
+│   ├── 📂 utils/
+│   │   └── Monitors.py             # Screen/monitor management
+│   └── 📂 tools/
+│       ├── parameter_sweep.py      # Parameter sweep tool
+│       ├── visualize_comparison.py # Chart generator
+│       ├── heatmap_gif.py          # Heatmap animation generator
+│       └── heatmap_viewer.py       # Heatmap viewer utility
 │
-├── 📂 JsonData/                   # Saved maze configurations
-├── 📂 MazeLayouts/                # Saved maze wall layouts
-├── 📂 NonRL_Results/              # Comparison & multi-run result JSONs
-├── 📂 ComparisonVisualization/    # Results for chart generation
-│   └── 📂 charts/                 # Generated PNG charts
-├── 📂 HeatMaps_vids/              # Heatmap animations
-└── 📂 oldCode/                    # Archived legacy implementations
+├── 📂 config/                      # Default templates/configuration
+├── 📂 assets/
+│   ├── 📂 images/
+│   └── 📂 maps/
+├── 📂 JsonData/                    # Saved maze configurations + RL outputs
+├── 📂 MazeLayouts/                 # Saved maze wall layouts
+├── 📂 NonRL_Results/               # Comparison and multi-run result JSONs
+├── 📂 ComparisonVisualization/     # JSONs used for post-hoc charts
+│   └── 📂 charts/                  # Generated PNG charts
+├── 📂 SweepResults/                # Parameter sweep outputs
+├── 📂 HeatMaps_vids/               # Heatmap videos/frames
+├── 📂 results/
+│   ├── 📂 logs/
+│   └── 📂 plots/
+└── 📂 oldCode/                     # Archived legacy implementations
 ```
 
 ---

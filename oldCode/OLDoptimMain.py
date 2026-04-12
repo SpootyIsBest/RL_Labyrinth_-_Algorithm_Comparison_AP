@@ -5,6 +5,7 @@ import random
 import math
 import json
 import os
+from pathlib import Path
 
 pygame.init()
 
@@ -19,8 +20,9 @@ clock = pygame.time.Clock()
 FPS = 60  # configurable in Options (1..500)
 
 # Files
-GRIDS_FILE = os.path.join(os.getcwd(), "grids.json")
-SETTINGS_FILE = os.path.join(os.getcwd(), "settings.json")
+OLDCODE_DIR = Path(__file__).resolve().parent
+GRIDS_FILE = str(OLDCODE_DIR / "grids.json")
+SETTINGS_FILE = str(OLDCODE_DIR / "settings.json")
 
 # Colors
 BLACK=(0,0,0); WHITE=(255,255,255); GREY=(40,40,40); LIGHT_GREY=(80,80,80); DARK_GREY=(25,25,25)

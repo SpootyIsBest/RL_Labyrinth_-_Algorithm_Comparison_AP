@@ -1,9 +1,0 @@
-{
-    "name": "ComparisonMaze",
-    "description": "Maze for algorithm comparison",
-    "MazeSize": [5, 5],
-    "NumOfEpisodes": 1000,
-    "stepsPerEpisode": 100,
-    "rewardForFinish": 50,
-    "rewardForValidMove": -1
-}

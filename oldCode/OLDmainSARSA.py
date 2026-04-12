@@ -1,8 +1,8 @@
 import numpy as np
 import pygame
 import random
-from Agent import Agent
-from State import State
+from src.agents.Agent import Agent
+from src.environment.State import State
 import math
 
 

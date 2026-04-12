@@ -7,16 +7,33 @@ import json
 import shutil
 import os
 import time
-from InputBox import InputBox
-from Maze import Maze
-from Monitors import Monitors
-from Button import Button
-from Agent import Agent
-from Button_On_Off import Button_On_Off
-from Drop_Down_Menu import Drop_Down_Menu
-from Algorithm_Dropdown import Algorithm_Dropdown
-from NonRL_Algorithms import get_algorithm
-from NonRL_Visualizer import NonRL_Visualizer
+from pathlib import Path
+from src.ui.InputBox import InputBox
+from src.environment.Maze import Maze
+from src.utils.Monitors import Monitors
+from src.ui.Button import Button
+from src.agents.Agent import Agent
+from src.ui.Button_On_Off import Button_On_Off
+from src.ui.Drop_Down_Menu import Drop_Down_Menu
+from src.ui.Algorithm_Dropdown import Algorithm_Dropdown
+from src.algorithms.NonRL_Algorithms import get_algorithm
+from src.algorithms.NonRL_Visualizer import NonRL_Visualizer
+
+
+ROOT_DIR = Path(__file__).resolve().parent
+ASSETS_DIR = ROOT_DIR / "assets"
+IMAGES_DIR = ASSETS_DIR / "images"
+MAPS_DIR = ASSETS_DIR / "maps"
+CONFIG_DIR = ROOT_DIR / "config"
+RESULTS_DIR = ROOT_DIR / "results"
+RESULTS_LOGS_DIR = RESULTS_DIR / "logs"
+
+
+def resolve_path(new_relative, legacy_relative):
+    new_path = ROOT_DIR / new_relative
+    if new_path.exists():
+        return str(new_path)
+    return legacy_relative
 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
 # ║                              PYGAME SETUP                                    ║
@@ -53,7 +70,7 @@ INACTIVE_COLOR = pygame.Color(255, 255, 255)
 TEXT_SAVED_COLOR = pygame.Color(178, 255, 169)
 
 # Load and scale agent image
-agent_img = pygame.image.load("Agent.png").convert_alpha()
+agent_img = pygame.image.load(resolve_path("assets/images/Agent.png", "Agent.png")).convert_alpha()
 agent_img = pygame.transform.smoothscale(agent_img, (32, 32))
 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
@@ -107,8 +124,9 @@ screenArray = Monitors()
 activeMonitor = "Mode_Selection"
 
 # Create NonRL_Results folder if it doesn't exist
-if not os.path.exists("NonRL_Results"):
-    os.makedirs("NonRL_Results", exist_ok=True)
+NONRL_RESULTS_DIR = resolve_path("NonRL_Results", "NonRL_Results")
+if not os.path.exists(NONRL_RESULTS_DIR):
+    os.makedirs(NONRL_RESULTS_DIR, exist_ok=True)
 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
 # ║                           FLAGS & STATE VARIABLES                            ║
@@ -208,26 +226,27 @@ new_json_file_name = "default"
 def load_json_for_setup():
     # Use comparison template if in EVERY mode
     if record_mode == "EVERY":
-        json_file = "default_comparison_data.json"
+        json_file = resolve_path("config/default_comparison_data.json", "default_comparison_data.json")
     else:
-        json_file = f"JsonData/default.json"
+        json_file = resolve_path("JsonData/default.json", "JsonData/default.json")
         if not os.path.exists(json_file):
-            json_file = f"default_data.json"
+            json_file = resolve_path("config/default_data.json", "default_data.json")
     
     try:
         with open(json_file, "r") as f:
             data = json.load(f)
     except FileNotFoundError:
         # Create default JSON if it doesn't exist
-        if not os.path.exists("JsonData"):
-            os.makedirs("JsonData", exist_ok=True)
+        json_data_dir = resolve_path("JsonData", "JsonData")
+        if not os.path.exists(json_data_dir):
+            os.makedirs(json_data_dir, exist_ok=True)
         if record_mode == "EVERY":
             # Use comparison template
-            with open("default_comparison_data.json", "r") as f:
+            with open(resolve_path("config/default_comparison_data.json", "default_comparison_data.json"), "r") as f:
                 data = json.load(f)
         else:
-            shutil.copy("default_data.json", "JsonData/default.json")
-            with open("JsonData/default.json", "r") as f:
+            shutil.copy(resolve_path("config/default_data.json", "default_data.json"), resolve_path("JsonData/default.json", "JsonData/default.json"))
+            with open(resolve_path("JsonData/default.json", "JsonData/default.json"), "r") as f:
                 data = json.load(f)
     
     return data
@@ -277,7 +296,7 @@ def save_setup_json():
         json_name = "default"
     
     # Create the filename with the name from JSON
-    json_file = f"JsonData/{json_name}.json"
+    json_file = os.path.join(resolve_path("JsonData", "JsonData"), f"{json_name}.json")
     # save json file name for later use
     new_json_file_name = json_name
     # Write to JSON file
@@ -311,7 +330,7 @@ def select_every_algorithm(monitor):
 # Launch the Parameter Sweep tool in a separate process
 def launch_parameter_sweep(monitor):
     import subprocess
-    script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "parameter_sweep.py")
+    script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "src", "tools", "parameter_sweep.py")
     print(f"Launching Parameter Sweep tool: {script_path}")
     subprocess.Popen([sys.executable, script_path], cwd=os.path.dirname(os.path.abspath(__file__)))
 
@@ -527,7 +546,7 @@ def _build_single_run_data():
     import copy
 
     # Load the default template
-    template_path = "default_comparison_results.json"
+    template_path = resolve_path("config/default_comparison_results.json", "default_comparison_results.json")
     try:
         with open(template_path, "r") as f:
             comparison_data = json.load(f)
@@ -803,7 +822,7 @@ def save_comparison_json():
     comparison_data = _build_single_run_data()
 
     # ── Save to file ──
-    filename = f"NonRL_Results/Comparison_{maze.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    filename = os.path.join(resolve_path("NonRL_Results", "NonRL_Results"), f"Comparison_{maze.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
     try:
         with open(filename, "w") as f:
             json.dump(comparison_data, f, indent=4)
@@ -818,7 +837,7 @@ def save_comparison_json():
               f"({comparison_data['summary']['shortest_path_found']['path_length']} steps)")
         
         # Also copy to ComparisonVisualization/ folder for the visualization script
-        viz_folder = "ComparisonVisualization"
+        viz_folder = resolve_path("ComparisonVisualization", "ComparisonVisualization")
         os.makedirs(viz_folder, exist_ok=True)
         viz_filename = os.path.join(viz_folder, os.path.basename(filename))
         shutil.copy(filename, viz_filename)
@@ -908,7 +927,7 @@ def save_multi_run_json():
     # ── Save to file ──
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     maze_name = multi_run_all_results[0]["metadata"]["maze_name"] if multi_run_all_results else "Unknown"
-    filename = f"NonRL_Results/MultiRun_{maze_name}_{multi_run_total}runs_{timestamp}.json"
+    filename = os.path.join(resolve_path("NonRL_Results", "NonRL_Results"), f"MultiRun_{maze_name}_{multi_run_total}runs_{timestamp}.json")
     try:
         with open(filename, "w") as f:
             json.dump(batch_data, f, indent=4)
@@ -924,7 +943,7 @@ def save_multi_run_json():
             print(f"  {algo_name}: avg path={avg_pl}, avg time={avg_t:.4f}s")
 
         # Also copy to ComparisonVisualization/ folder
-        viz_folder = "ComparisonVisualization"
+        viz_folder = resolve_path("ComparisonVisualization", "ComparisonVisualization")
         os.makedirs(viz_folder, exist_ok=True)
         viz_filename = os.path.join(viz_folder, os.path.basename(filename))
         shutil.copy(filename, viz_filename)
@@ -1003,7 +1022,7 @@ setup_input_boxes, setup_input_box_labels, setup_json_keys = initialize_setup_in
 
 # Initialize input boxes for comparison maze setup
 def initialize_comparison_input_boxes():
-    with open("default_comparison_data.json", "r") as f:
+    with open(resolve_path("config/default_comparison_data.json", "default_comparison_data.json"), "r") as f:
         comparison_data = json.load(f)
     
     comparison_keys = list(comparison_data.keys())
@@ -1109,7 +1128,7 @@ def save_comparison_and_continue_to_rl_settings(monitor):
     global new_json_file_name
     
     # Load base comparison data
-    with open("default_comparison_data.json", "r") as f:
+    with open(resolve_path("config/default_comparison_data.json", "default_comparison_data.json"), "r") as f:
         data = json.load(f)
     
     # Update from input boxes
@@ -1128,7 +1147,7 @@ def save_comparison_and_continue_to_rl_settings(monitor):
         json_name = "ComparisonMaze"
     
     new_json_file_name = json_name
-    json_file = f"JsonData/{json_name}.json"
+    json_file = os.path.join(resolve_path("JsonData", "JsonData"), f"{json_name}.json")
     
     try:
         with open(json_file, "w") as f:
@@ -1199,7 +1218,7 @@ def save_comparison_and_start(monitor):
     global new_json_file_name, agent, maze, Q, HeatTable
     
     # Load base comparison data
-    with open("default_comparison_data.json", "r") as f:
+    with open(resolve_path("config/default_comparison_data.json", "default_comparison_data.json"), "r") as f:
         data = json.load(f)
     
     # Update from input boxes
@@ -1218,7 +1237,7 @@ def save_comparison_and_start(monitor):
         json_name = "ComparisonMaze"
     
     new_json_file_name = json_name
-    json_file = f"JsonData/{json_name}.json"
+    json_file = os.path.join(resolve_path("JsonData", "JsonData"), f"{json_name}.json")
     
     try:
         with open(json_file, "w") as f:
@@ -1315,7 +1334,7 @@ def save_create_maze_and_return_to_main(monitor):
 # Create maze from JSON data
 def create_maze_from_json(json_file_name):
     global maze, EPISODES, max_steps, selected_algorithm
-    json_file = f"JsonData/{json_file_name}.json"
+    json_file = os.path.join(resolve_path("JsonData", "JsonData"), f"{json_file_name}.json")
     with open(json_file, "r") as f:
         data = json.load(f)
     maze_name = data.get("name", "MAZE_NAME_NOT_FOUND")
@@ -1707,7 +1726,7 @@ def save_json_data(maze,
                 alpha_decay=0.997
                 ):
     # Load existing JSON to preserve setup data
-    json_file = f"JsonData/{new_json_file_name}.json"
+    json_file = os.path.join(resolve_path("JsonData", "JsonData"), f"{new_json_file_name}.json")
     try:
         with open(json_file, "r") as f:
             data = json.load(f)
@@ -1779,7 +1798,7 @@ def save_nonrl_json_data(maze, algorithm_name, path_taken, execution_time, succe
     }
     
     # Create filename
-    filename = f"NonRL_Results/{maze.name}_{algorithm_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    filename = os.path.join(resolve_path("NonRL_Results", "NonRL_Results"), f"{maze.name}_{algorithm_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
     
     try:
         with open(filename, "w") as f:
@@ -1841,11 +1860,12 @@ def save_current_as_layout(monitor):
     }
     
     # Ensure MazeLayouts folder exists
-    if not os.path.exists("MazeLayouts"):
-        os.makedirs("MazeLayouts", exist_ok=True)
+    layouts_dir = resolve_path("MazeLayouts", "MazeLayouts")
+    if not os.path.exists(layouts_dir):
+        os.makedirs(layouts_dir, exist_ok=True)
     
     # Save to MazeLayouts folder
-    layout_file = f"MazeLayouts/{maze.name}_layout.json"
+    layout_file = os.path.join(layouts_dir, f"{maze.name}_layout.json")
     try:
         with open(layout_file, "w") as f:
             json.dump(layout_data, f, indent=4)
@@ -1880,7 +1900,7 @@ def load_maze_and_continue(monitor):
         print(f"Loaded: {selected_file}")
         
         # Copy to JsonData if needed
-        json_data_path = f"JsonData/{new_json_file_name}.json"
+        json_data_path = os.path.join(resolve_path("JsonData", "JsonData"), f"{new_json_file_name}.json")
         if not os.path.exists(json_data_path):
             import shutil
             shutil.copy(json_path, json_data_path)
@@ -2278,7 +2298,7 @@ def initialize_all_buttons():
     # Drop-down menu for Load Menu
     maze_dropdown = Drop_Down_Menu(
         screen,
-        folder_path="MazeLayouts",
+        folder_path=resolve_path("MazeLayouts", "MazeLayouts"),
         on_select_callback=on_maze_selected,
         button_font=INPUT_BOX_FONT,
         width=int(SCREEN_WIDTH * 0.3),
@@ -3677,4 +3697,4 @@ save_json_data(
     alpha_decay=ALPHA_DECAY
 )
 
-print(f"Saved training data to JsonData/{new_json_file_name}.json")
+print(f"Saved training data to {resolve_path('JsonData', 'JsonData')}/{new_json_file_name}.json")
